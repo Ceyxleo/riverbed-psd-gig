@@ -1,0 +1,25 @@
+source,function,window_start,window_end,query,n_results
+Google Scholar,Lognormal,1950,1959,"""lognormal"" ""particle size distribution function"" sediment",0
+Google Scholar,Weibull,1950,1959,"""weibull"" ""particle size distribution function"" sediment",0
+Google Scholar,GIG,1950,1959,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0
+Google Scholar,Lognormal,1960,1969,"""lognormal"" ""particle size distribution function"" sediment",2
+Google Scholar,Weibull,1960,1969,"""weibull"" ""particle size distribution function"" sediment",1
+Google Scholar,GIG,1960,1969,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0
+Google Scholar,Lognormal,1970,1979,"""lognormal"" ""particle size distribution function"" sediment",15
+Google Scholar,Weibull,1970,1979,"""weibull"" ""particle size distribution function"" sediment",1
+Google Scholar,GIG,1970,1979,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0
+Google Scholar,Lognormal,1980,1989,"""lognormal"" ""particle size distribution function"" sediment",35
+Google Scholar,Weibull,1980,1989,"""weibull"" ""particle size distribution function"" sediment",3
+Google Scholar,GIG,1980,1989,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0
+Google Scholar,Lognormal,1990,1999,"""lognormal"" ""particle size distribution function"" sediment",94
+Google Scholar,Weibull,1990,1999,"""weibull"" ""particle size distribution function"" sediment",21
+Google Scholar,GIG,1990,1999,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0
+Google Scholar,Lognormal,2000,2009,"""lognormal"" ""particle size distribution function"" sediment",205
+Google Scholar,Weibull,2000,2009,"""weibull"" ""particle size distribution function"" sediment",18
+Google Scholar,GIG,2000,2009,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0
+Google Scholar,Lognormal,2010,2019,"""lognormal"" ""particle size distribution function"" sediment",256
+Google Scholar,Weibull,2010,2019,"""weibull"" ""particle size distribution function"" sediment",38
+Google Scholar,GIG,2010,2019,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0
+Google Scholar,Lognormal,2020,2025,"""lognormal"" ""particle size distribution function"" sediment",210
+Google Scholar,Weibull,2020,2025,"""weibull"" ""particle size distribution function"" sediment",49
+Google Scholar,GIG,2020,2025,"""generalized inverse Gaussian"" ""particle size distribution"" sediment",0

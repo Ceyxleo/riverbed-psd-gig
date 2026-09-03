@@ -1,0 +1,28 @@
+# conda env create -f environment.yml && conda activate psd-gig
+name: psd-gig
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  # analysis
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - pyyaml
+  - tqdm
+  - pyarrow          # NHDPlus parquet, used only by scripts/build_data_deposit.py
+  # figures
+  - matplotlib
+  - seaborn
+  # maps (Fig. 2, Fig. S2)
+  - geopandas
+  - shapely
+  - fiona
+  - pyproj
+  # notebooks and tests
+  - jupyter
+  - ipykernel
+  - nbconvert
+  - nbstripout
+  - pytest

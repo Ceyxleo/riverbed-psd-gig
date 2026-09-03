@@ -1,0 +1,27 @@
+# 3 USGS samples through all 25 functions. Finishes in seconds; used by
+# `make smoke` and by tests/test_smoke_pipeline.py.
+
+project:
+  name: psd-gig-smoke
+
+paths:
+  input_data_file: data/usgs_psd_samples_qc.csv
+  output_root: outputs/fit_smoke
+
+data:
+  size_columns: auto
+  size_pattern: '^p[0-9]+$'
+  size_lookup:
+    kind: file
+    path: data/reference/sieve_sizes_all43.csv
+
+runtime:
+  maxfev: 2000
+  progress: true
+  overwrite: true
+  limit_samples: 3
+  checkpoint_every: 1000
+  grid_chunk_samples: 10
+  write_grid_search_all: true
+  progress_tracker: true
+  progress_log_every: 1

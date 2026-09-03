@@ -1,0 +1,32 @@
+# Lower Rhine independent validation, 67 samples x 5 sieve grades.
+#
+# The input is NOT distributed with this repository or with the data deposit:
+# the source dataset is CC BY-NC-ND. See data/rhine/README.md for how to build
+# data/rhine/rhine_data_to_fit.csv from the 4TU.ResearchData record.
+#
+# Sizes are read from the column names ("0.5 mm", "2 mm", ...), and maxfev is
+# 20,000 -- with 67 samples the grid search dominates the cost, not maxfev.
+
+project:
+  name: psd-gig-rhine
+
+paths:
+  input_data_file: data/rhine/rhine_data_to_fit.csv
+  output_root: outputs/fit_rhine
+
+data:
+  size_columns: auto
+  size_pattern: '^[0-9]*\.?[0-9]+ ?mm$'
+  size_lookup:
+    kind: column_name
+
+runtime:
+  maxfev: 20000
+  progress: true
+  overwrite: true
+  limit_samples:
+  checkpoint_every: 100
+  grid_chunk_samples: 67
+  write_grid_search_all: true
+  progress_tracker: true
+  progress_log_every: 10

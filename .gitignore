@@ -1,0 +1,9 @@
+outputs/
+data/*.csv
+data/fitted_functions/
+data/rhine/*.csv
+!data/reference/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
