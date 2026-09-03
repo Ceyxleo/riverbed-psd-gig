@@ -60,6 +60,38 @@ and the rest are not. pPL_Exp is non-monotone for 66% of samples and reaches 204
 non-monotone for 38%. Every claim in the paper rests on one of the eight well-behaved
 functions, but "25 candidate distributions" is doing some work in that sentence.
 
+## Two fitting layers exist, and the paper quotes both
+
+Nine functions are fitted twice: once from a single default initial guess ("base"), and once
+over a grid of initial guesses, keeping the lowest-BIC result ("grid-selected"). Six of those
+nine have both layers preserved in the legacy tree, and the deposit ships both --
+`02_fits/fits_F*.csv` are the grid-selected finals, `02_fits/base_fits/base_F*.csv` the base
+fits.
+
+This matters because **the manuscript's main text quotes the base fits while Table S2 quotes
+the grid-selected ones**:
+
+| Function | Main text | Table S2 (grid-selected) | Base fit |
+|---|---|---|---|
+| GIG_3p | 16.7 | 16.676 | 16.746 |
+| GIG_2p | 19.5 | 19.472 | 19.472 |
+| Logn_PL | 19.8 | 19.570 | **19.810** |
+| Lognormal | 21.3 | 20.767 | **21.334** |
+| GLH | 21.9 | 21.583 | **21.853** |
+| Weibull | 24.5 | 24.135 | **24.499** |
+
+GIG_2p is the one function whose two layers have the same median, so the main text's
+comparison puts GIG's grid-selected number against its competitors' base-fit numbers. The gap
+to Logn_PL reads as 0.34 BIC units that way; on a consistent set it is 0.10, which the paper's
+own Kass & Raftery criterion calls negligible.
+
+The headline claims survive either consistent choice — GIG_2p is first among two-parameter
+functions and second overall under both — but the main text should be brought onto the
+grid-selected values, which is what Table S2, Table S3, Fig. 4, the percentiles and every
+downstream variable use.
+
+Everything in this repository uses the grid-selected layer.
+
 ## Grid search is applied to nine of the 25 functions
 
 Nine functions are optimised over a grid of initial parameter values; the other sixteen get a

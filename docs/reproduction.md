@@ -38,6 +38,27 @@ initial guess on that grid, keeping the lowest-BIC result. The grids are:
 The other sixteen are fitted from SciPy's default `p0` with one retry at `(0.5, 2.5)` for
 two-parameter forms or `(0.5, 2.5, -0.5)` for three-parameter forms.
 
+## Which fit file is the final one
+
+`Lingbo/fitted_functions/` holds 40 files for 25 functions:
+
+* 25 uppercase `F<NN>_*.csv` — the finals. For the six functions carrying a
+  `_grids_well` suffix these are grid-selected; the rest are direct fits.
+* 9 lowercase `f*_gridsearch_all.csv` — the full grid traces, ~500 MB, not deposited.
+* 6 lowercase `f<NN>_<Label>.csv` — single-initial-guess base fits for Lognormal, GIG_2p,
+  Weibull, GLH, Logn_PL and GIG_3p.
+
+`scripts/build_data_deposit.py` takes the 25 uppercase files as `02_fits/fits_F*.csv` and the
+6 base fits as `02_fits/base_fits/`. The glob is case-sensitive, so no lowercase file is ever
+a candidate for the finals. `function_catalog.csv` records which layer each function's final
+came from in its `fit_layer` column.
+
+The legacy `Figure_3.py` read the lowercase base fits while `compute_representative_dvalues.py`
+read the uppercase grid-selected ones. This repository uses the grid-selected layer
+throughout; for the GIG parameters that Fig. 3 actually plots the two agree to the fourth
+decimal (rho_s = +0.8466 either way for eta, -0.7707 vs -0.7706 for beta), so the published
+panels are unaffected.
+
 ## Known reproduction wrinkles
 
 * Grid searches can converge to effectively identical BIC values from different initial

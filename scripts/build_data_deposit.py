@@ -236,10 +236,32 @@ def phase_archive(source: Path, deposit: Path) -> None:
             "fit_x_transform": spec.base_x_transform,
             "implementation": f"psd_gig.function_library.{spec.func.__name__}",
             "archived_file": f"fits_F{spec.number:02d}_{spec.label}.csv",
+            "fit_layer": "grid-selected" if "grids_well" in matches[0].name else "direct",
             "legacy_file": matches[0].name,
         })
     pd.DataFrame(catalog).to_csv(fits_dir / "function_catalog.csv", index=False)
     print(f"  fits_F01..F25 + function_catalog.csv ({len(catalog)} functions)")
+
+    # Six of the nine grid-searched functions also have a single-initial-guess fit in
+    # the legacy tree. Those are what the manuscript's main text quotes for median BIC,
+    # while Table S2 quotes the grid-selected values, so both are deposited.
+    base_dir = fits_dir / "base_fits"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    base_written = []
+    for spec in FUNCTION_SPECS:
+        candidates = [p for p in (source / "fitted_functions").glob("f*.csv")
+                      if p.stem.lower() == f"f{spec.number:02d}_{spec.label}".lower()]
+        if not candidates:
+            continue
+        fit = pd.read_csv(candidates[0], dtype={"site_no": str})
+        fit["sample_ID"] = fit["sample_ID"].astype(int)
+        keep = ["site_no", "sample_ID"]
+        keep += [c for c in ("fitted_A", "fitted_B", "fitted_C") if c in fit.columns]
+        keep += ["RMSE", "R^2", "AIC", "BIC"]
+        fit[keep].rename(columns={"R^2": "R2"}).to_csv(
+            base_dir / f"base_F{spec.number:02d}_{spec.label}.csv", index=False)
+        base_written.append(spec.label)
+    print(f"  base_fits/ ({len(base_written)}): {', '.join(base_written)}")
 
     best = final[["site_no", "sample_ID", "best_function(s)", "num_functions"]].copy()
     single = pd.read_csv(source / "output_data" / "BIC_one_best_2p_func_for_each_sample.csv",

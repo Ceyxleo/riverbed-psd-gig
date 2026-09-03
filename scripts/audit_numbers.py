@@ -116,9 +116,18 @@ def check_bic_tables() -> None:
         record("BIC", "GIG_3p median BIC", 16.7, None)
         return
     medians = s2.set_index("function")["median_BIC"]
+    # The main text quotes the single-initial-guess fits for four of these six, while
+    # Table S2 quotes the grid-selected fits. Both layers are in the deposit; the
+    # grid-selected layer is the one everything else in the paper uses.
+    from_base_fits = {"Logn_PL": 19.810, "Lognormal": 21.334,
+                      "GLH": 21.853, "Weibull": 24.499}
     for function, published in (("GIG_3p", 16.7), ("GIG_2p", 19.5), ("Logn_PL", 19.8),
                                 ("Lognormal", 21.3), ("GLH", 21.9), ("Weibull", 24.5)):
-        record("BIC", f"{function} median BIC", published, medians[function], 0.05)
+        note = ""
+        if function in from_base_fits:
+            note = (f"main text quotes the base fit ({from_base_fits[function]:.3f}); "
+                    f"Table S2 and everything downstream use the grid-selected fit")
+        record("BIC", f"{function} median BIC", published, medians[function], 0.05, note)
     record("BIC", "GIG_2p ranks ahead of Logn_PL", "yes",
            "yes" if medians["GIG_2p"] < medians["Logn_PL"] else "no")
     record("BIC", "  gap GIG_2p vs Logn_PL (BIC units, negligible if < 2)", 2.0,
