@@ -75,11 +75,6 @@ def style_axis(ax) -> None:
         ax.spines[spine].set_visible(False)
 
 
-def panel_label(ax, text: str) -> None:
-    ax.text(0.0, 1.03, text, transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=8, fontweight="bold")
-
-
 def violin_panel(ax, matrix: pd.DataFrame, labels: list[str], n_params: dict[str, int],
                  metric: str, title: str, label_y: float) -> None:
     data = [matrix[label].dropna().to_numpy() for label in labels]
@@ -143,14 +138,14 @@ def main() -> int:
     bic_low = float(np.nanpercentile(bic_matrix.to_numpy(), 0.5))
     bic_high = float(np.nanpercentile(bic_matrix.to_numpy(), 99.0))
     violin_panel(ax_bic, bic_matrix, labels, n_params, "BIC",
-                 "a  Function performance, BIC", bic_low - 0.02 * (bic_high - bic_low))
-    ax_bic.set_ylim(bic_low - 0.16 * (bic_high - bic_low), bic_high)
+                 "a  Function performance, BIC", bic_low - 0.30 * (bic_high - bic_low))
+    ax_bic.set_ylim(bic_low - 0.32 * (bic_high - bic_low), bic_high)
     ax_bic.set_xticklabels([])
 
     rmse_high = float(np.nanpercentile(rmse_matrix.to_numpy(), 99.0))
     violin_panel(ax_rmse, rmse_matrix, labels, n_params, "RMSE",
-                 "b  Function performance, RMSE", -0.02 * rmse_high)
-    ax_rmse.set_ylim(-0.16 * rmse_high, rmse_high)
+                 "b  Function performance, RMSE", -0.30 * rmse_high)
+    ax_rmse.set_ylim(-0.32 * rmse_high, rmse_high)
 
     handles = [plt.Rectangle((0, 0), 1, 1, color=TWO_PARAMETER_COLOR, alpha=0.72),
                plt.Rectangle((0, 0), 1, 1, color=THREE_PARAMETER_COLOR, alpha=0.72)]
@@ -181,8 +176,6 @@ def main() -> int:
     ax_bar.legend(frameon=False, loc="upper right", handlelength=1.0, borderpad=0.2)
     style_axis(ax_bar)
 
-    for ax, text in ((ax_bic, "a"), (ax_rmse, "b"), (ax_bar, "c")):
-        panel_label(ax, "")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     written = []
     if args.format in {"png", "both"}:

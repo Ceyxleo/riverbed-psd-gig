@@ -284,7 +284,8 @@ DERIVED = [
     ("outputs/tables/table_S4_by_n_parameters.csv", "06_tables_and_figure_data"),
     ("outputs/tables/table_S5_significance.csv", "06_tables_and_figure_data"),
     ("outputs/tables/figure5_rmsre_matrix.csv", "06_tables_and_figure_data"),
-    ("outputs/tables/figure3_correlations.csv", "06_tables_and_figure_data"),
+    ("outputs/tables/figure4_delta_bic_summary.csv", "06_tables_and_figure_data"),
+    ("outputs/tables/cdf_validity.csv", "06_tables_and_figure_data"),
     ("outputs/rhine/rhine_function_summary.csv", "06_tables_and_figure_data"),
     ("outputs/rhine/rhine_best_fit_by_skew_class.csv", "06_tables_and_figure_data"),
 ]

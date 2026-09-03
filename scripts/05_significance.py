@@ -27,7 +27,6 @@ Three things this fixes relative to the submitted Table S5:
 from __future__ import annotations
 
 import argparse
-import sys
 import warnings
 from pathlib import Path
 
@@ -36,7 +35,6 @@ import pandas as pd
 from scipy import stats
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
 VARIABLES = [
     ("Bedload transport", "bedload_transport_", "_m2_s", "bedload_transport"),

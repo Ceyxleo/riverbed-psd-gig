@@ -30,6 +30,7 @@ water: dvalues
 tables: water
 	$(PY) scripts/04_bic_tables.py
 	$(PY) scripts/05_significance.py
+	$(PY) scripts/07_cdf_validity.py
 
 figures: tables
 	$(PY) scripts/fig_01.py
