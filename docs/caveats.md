@@ -111,9 +111,12 @@ The mid-table ranking of Table S2 would change.
 ## Percentile solver: analytic inverse versus the archived grid scan
 
 The archived percentiles (`03_percentiles/dvalues_archived.csv` in the deposit) were produced
-by a grid scan of the fitted CDF; `scripts/02_compute_dvalues.py` uses an analytic inverse
-with a bracketed-root fallback. They agree to about 1e-4 relative, except where the original
-scan hit its upper bound. `scripts/03_water_metrics.py` defaults to the archived table so
+by scanning the fitted CDF on `linspace(D_start, 500, 100000)` and taking the first grid point
+at or above the target. `scripts/02_compute_dvalues.py` uses an analytic inverse with a
+bracketed-root fallback instead. They agree to a median 6e-5 relative, but the scan always
+overshoots the target slightly and cannot return anything above its **500 mm ceiling**: two of
+415,065 values differ by more than 1% (sample 25839, D75 and D84 for GIG), and four archived
+values are missing where the true percentile lies far beyond 500 mm. `scripts/03_water_metrics.py` defaults to the archived table so
 that the published Fig. 5 values reproduce exactly; pass
 `--dvalues outputs/dvalues/dvalues_recomputed.csv` to use the analytic inverse instead, which
 shifts the Fredle Index reduction against Lognormal from 29.1% to 30.3%.
