@@ -59,6 +59,55 @@ def squared_relative_error(reference: pd.Series, prediction: pd.Series) -> pd.Se
     return (((reference - prediction) / reference) ** 2) * 100
 
 
+def render(table: pd.DataFrame, path: Path) -> None:
+    """The paper-ready Table S5, in the shape recommended to replace the submitted one."""
+    names = {"GIG_2p": "GIG", "Lognormal": "Lognormal", "Weibull": "Weibull"}
+    lines = [
+        "**Table S5. Accuracy of the water-security variables under GIG, Lognormal and "
+        "Weibull, and paired tests of GIG's advantage.**",
+        "",
+        "| Variable | n samples (sites) | RMSRE (%) | | | Median abs. rel. error (%) | | |",
+        "|---|---|---|---|---|---|---|---|",
+        "| | | " + " | ".join(names.values()) + " | " + " | ".join(names.values()) + " |",
+    ]
+    for _, row in table.iterrows():
+        cells = [f"{row[f'RMSRE_{f}_percent']:.2f}" for f in FUNCTIONS]
+        cells += [f"{row[f'medianABSRE_{f}_percent']:.2f}" for f in FUNCTIONS]
+        lines.append(f"| {row['variable']} | {row['n_samples']:,} ({row['n_sites']:,}) | "
+                     + " | ".join(cells) + " |")
+
+    lines += [
+        "",
+        "| Variable | Contrast | GIG has the lower error | Tied | Rank-biserial r |",
+        "|---|---|---|---|---|",
+    ]
+    for _, row in table.iterrows():
+        for other in ("Lognormal", "Weibull"):
+            wins, losses = row[f"n_wins_vs_{other}"], row[f"n_losses_vs_{other}"]
+            lines.append(
+                f"| {row['variable']} | vs {other} | "
+                f"{row[f'gig_lower_error_share_vs_{other}_percent']:.1f}% "
+                f"({wins:,} of {wins + losses:,} decided) | "
+                f"{row[f'n_ties_vs_{other}']:,} | "
+                f"{row[f'rank_biserial_vs_{other}']:+.3f} |")
+
+    worst = table[[f"wilcoxon_p_one_sided_vs_{o}" for o in ("Lognormal", "Weibull")]].to_numpy().max()
+    lines += [
+        "",
+        "One-sided Wilcoxon signed-rank test on the paired difference "
+        "SRE_other - SRE_GIG, where SRE = ((X_ref - X_f)/X_ref)^2 and X_ref is the mean over "
+        f"the sample's best-fit set. Every p < {worst:.0e}; the W statistics and exact p-values "
+        "are in `table_S5_significance.csv`. With n this large the p-values separate nothing, "
+        "so the win rate and the rank-biserial correlation are given instead: the first counts "
+        "how often GIG wins, the second weights those wins by size. Ties are exact and "
+        "structural -- when both functions are in a sample's best-fit set the reference lies "
+        "midway between them -- so the win rate is taken over decided pairs. RMSRE is the "
+        "quantity plotted in Fig. 5; the median is given alongside because the mean squared "
+        "error is dominated by a small number of extreme samples.",
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -82,16 +131,31 @@ def main() -> int:
             row[f"meanSRE_{f}"] = float(errors[f].mean())
             row[f"sdSRE_{f}"] = float(errors[f].std(ddof=1))
             row[f"RMSRE_{f}_percent"] = float(np.sqrt(errors[f].mean() / 100) * 100)
+            # The mean is tail-dominated -- on bedload the SD is 50-86x the mean -- so
+            # the typical sample needs its own number.
+            absolute = np.sqrt(errors[f] / 100) * 100
+            row[f"medianABSRE_{f}_percent"] = float(absolute.median())
+            row[f"p90ABSRE_{f}_percent"] = float(absolute.quantile(0.90))
         rows.append(row)
 
         for other in ("Lognormal", "Weibull"):
             difference = (errors[other] - errors["GIG_2p"]).to_numpy()
             w, p = stats.wilcoxon(difference, zero_method="wilcox", alternative="greater")
-            nonzero = int(np.sum(difference != 0))
+            wins = int(np.sum(difference > 0))
+            losses = int(np.sum(difference < 0))
+            ties = int(np.sum(difference == 0))
+            nonzero = wins + losses
             row[f"wilcoxon_W_vs_{other}"] = float(w)
             row[f"wilcoxon_p_one_sided_vs_{other}"] = float(p)
-            row[f"n_nonzero_pairs_vs_{other}"] = nonzero
-            row[f"gig_lower_error_share_vs_{other}_percent"] = float((difference > 0).mean() * 100)
+            row[f"n_wins_vs_{other}"] = wins
+            row[f"n_losses_vs_{other}"] = losses
+            # Exact ties are structural, not coincidental: when GIG and the other
+            # function are both in a sample's best-fit set, the reference is their
+            # mean, so both sit the same distance from it. Counting ties as losses
+            # would understate the win rate, so the share is over decided pairs.
+            row[f"n_ties_vs_{other}"] = ties
+            row[f"gig_lower_error_share_vs_{other}_percent"] = (
+                float(wins / nonzero * 100) if nonzero else float("nan"))
             # Matched-pairs rank-biserial correlation, (W+ - W-) / (W+ + W-).
             # This uses the ranks, so it reflects how large GIG's wins are, not just
             # how many there are -- the win-rate column already counts those.
@@ -102,22 +166,9 @@ def main() -> int:
     table = pd.DataFrame(rows)
     table.to_csv(args.out / "table_S5_significance.csv", index=False)
 
-    print("Table S5 -- mean (SD) squared relative error, x10^-2, and paired Wilcoxon tests\n")
-    print(f"{'variable':22s} {'n':>7s} " + "".join(f"{f:>18s}" for f in FUNCTIONS))
-    for _, row in table.iterrows():
-        print(f"{row['variable']:22s} {row['n_samples']:7,} " +
-              "".join(f"{row[f'meanSRE_{f}']:11.3f} ({row[f'sdSRE_{f}']:5.2f})"
-                      for f in FUNCTIONS))
-    print(f"\n{'variable':22s} {'contrast':12s} {'W':>15s} {'p':>11s} "
-          f"{'GIG better':>11s} {'rank-biserial':>14s}")
-    for _, row in table.iterrows():
-        for other in ("Lognormal", "Weibull"):
-            p = row[f"wilcoxon_p_one_sided_vs_{other}"]
-            p_text = "< 1e-300" if p == 0 else f"{p:.2e}"
-            print(f"{row['variable']:22s} {'vs ' + other:12s} "
-                  f"{row[f'wilcoxon_W_vs_{other}']:15,.0f} {p_text:>11s} "
-                  f"{row[f'gig_lower_error_share_vs_{other}_percent']:10.1f}% "
-                  f"{row[f'rank_biserial_vs_{other}']:+14.3f}")
+    render(table, args.out / "table_S5_paper.md")
+    print((args.out / "table_S5_paper.md").read_text())
+
     print(f"\n  -> {(args.out / 'table_S5_significance.csv').relative_to(ROOT)}")
     return 0
 
