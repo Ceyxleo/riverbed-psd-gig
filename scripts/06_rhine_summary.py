@@ -114,11 +114,11 @@ def main() -> int:
     # ---- per-function metrics --------------------------------------------
     metrics = {}
     for spec in FUNCTION_SPECS:
-        matches = sorted(args.fits.glob(f"F{spec.number:02d}_*.csv"))
-        if not matches:
-            print(f"  missing fit output for F{spec.number:02d} {spec.label}")
+        path = args.fits / spec.output_name
+        if not path.exists():
+            print(f"  missing fit output for {spec.id}")
             continue
-        fit = pd.read_csv(matches[0])
+        fit = pd.read_csv(path)
         fit["sample_ID"] = fit["sample_ID"].astype(str)
         metrics[spec.label] = fit.drop_duplicates("sample_ID").set_index("sample_ID")
     if len(metrics) < len(FUNCTION_SPECS):
@@ -133,7 +133,7 @@ def main() -> int:
         "n_samples": [int(bic[label].notna().sum()) for label in metrics],
         "median_BIC": [bic[label].median() for label in metrics],
         "median_RMSE": [rmse[label].median() for label in metrics],
-        "median_R2": [metrics[label]["R^2"].median() for label in metrics],
+        "median_R2": [metrics[label]["R2"].median() for label in metrics],
     }).sort_values("median_BIC")
     summary.to_csv(args.out / "rhine_function_summary.csv", index=False)
 

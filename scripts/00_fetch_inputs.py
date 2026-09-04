@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Populate `data/` from the data deposit.
 
-The deposit holds the quality-controlled samples and the archived fitted
-parameters; this repository holds only code and small reference tables, so the
-bulk inputs are copied in once before anything else runs.
+The deposit holds the quality-controlled samples, the water-security inputs and the
+final fitted parameters; this repository holds only code and small reference tables,
+so the bulk inputs are copied in once before anything else runs.
 
     python scripts/00_fetch_inputs.py --deposit ../psd-gig-data-v1.0.0
 
@@ -20,13 +20,15 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DEPOSIT = ROOT.parent / "psd-gig-data-v1.0.0"
 
 FILES = [
-    ("01_samples/usgs_psd_samples_qc.csv", "data/usgs_psd_samples_qc.csv"),
-    ("01_samples/usgs_sample_statistics.csv", "data/usgs_sample_statistics.csv"),
-    ("01_samples/usgs_station_metadata.csv", "data/usgs_station_metadata.csv"),
-    ("04_hydraulics/station_nhdplus_attributes.csv", "data/station_nhdplus_attributes.csv"),
-    ("04_hydraulics/station_q100_logpearson3.csv", "data/station_q100_logpearson3.csv"),
+    ("01_conus_samples/usgs_psd_samples_qc.csv", "data/usgs_psd_samples_qc.csv"),
+    ("01_conus_samples/usgs_sample_statistics.csv", "data/usgs_sample_statistics.csv"),
+    ("01_conus_samples/usgs_station_metadata.csv", "data/usgs_station_metadata.csv"),
+    ("02_water_security_inputs/station_nhdplus_attributes.csv",
+     "data/station_nhdplus_attributes.csv"),
+    ("02_water_security_inputs/station_q100_logpearson3.csv",
+     "data/station_q100_logpearson3.csv"),
 ]
-FIT_GLOB = "02_fits/fits_F*.csv"
+FIT_GLOB = "03_fitted_functions/conus/fits_F*.csv"
 
 
 def main() -> int:

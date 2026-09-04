@@ -1,15 +1,17 @@
-# Configuration that produced the archived USGS fits (fitted_functions/F01..F25).
+# CONUS (USGS) riverbed samples: 19,765 samples x up to 43 sieve grades.
 #
-# NOTE ON REPRODUCTION
-# The fits were produced once, with maxfev = 1,000,000, and are shipped in the
-# data deposit. This repository does NOT re-run them by default: a full run takes
-# several days of wall clock. Use `make verify` to check that this configuration
-# reproduces the deposited values on a subset of samples.
+# Every function is grid-searched (the default mode) and the lowest-BIC fit per sample
+# is written to outputs/fit_usgs/fitted_functions/. `--mode base` writes single-guess
+# fits to outputs/fit_usgs/base_fits/ instead, and never touches the grid results.
 #
-# `size_columns: auto` selects every USGS sieve parameter code present in the
-# input (43 grades). This matters: the archived fits used all available grades,
-# not only the twelve principal ones. Restricting to the twelve changes the fit
-# for 924 of 19,765 samples, by a median of 6.4 BIC units.
+# `size_columns: auto` selects every USGS sieve parameter code present in the input,
+# so a sample is fitted on all the grades it has (up to 43), not only the twelve
+# principal ones. Restricting to the twelve changes the fit for 924 of the 19,765
+# samples, by a median of 6.4 BIC units.
+#
+# maxfev = 20,000. Nine functions (F05, F06, F10, F12, F14, F15, F16, F18, F25) are
+# shipped from the original grid runs at maxfev = 1e6 -- re-running those three
+# SciPy-integrated CDFs here would take weeks. See README, "Fitting".
 
 project:
   name: psd-gig-usgs
@@ -26,12 +28,11 @@ data:
     path: data/reference/sieve_sizes_all43.csv
 
 runtime:
-  maxfev: 1000000
+  maxfev: 20000
   progress: true
-  overwrite: false
+  overwrite: true
   limit_samples:
-  checkpoint_every: 1000
   grid_chunk_samples: 100
-  write_grid_search_all: true
+  write_grid_search_all: false
   progress_tracker: true
-  progress_log_every: 100
+  progress_log_every: 250

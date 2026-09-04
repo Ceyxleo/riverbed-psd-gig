@@ -3,15 +3,18 @@
 #   make setup     create the conda environment
 #   make inputs    copy the data deposit's tables into data/
 #   make smoke     3 samples through all 25 functions (seconds)
-#   make all       water metrics -> tables -> figures -> audit
+#   make fits      re-fit the 16 non-shipped functions, grid search (~20 min, JOBS cores)
+#   make all       percentiles -> water metrics -> tables -> figures -> audit
 #   make rhine     Lower Rhine fit, summary and Fig. S5 (needs the restricted input)
 #   make deposit   rebuild the data deposit
 #
 PY ?= python
 DEPOSIT ?= ../psd-gig-data-v1.0.0
 FORMAT ?= png
+JOBS ?= 10
 
-.PHONY: setup inputs smoke dvalues water tables figures audit all rhine verify deposit test clean
+.PHONY: setup inputs smoke fits base rhine dvalues water tables figures audit all \
+        verify deposit test clean
 
 setup:
 	conda env create -f environment.yml
@@ -21,6 +24,20 @@ inputs:
 
 smoke:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_smoke.yaml
+
+# Grid search, all sixteen functions this repository re-fits. The other nine are
+# shipped from the original maxfev = 1e6 runs; collect_fits.py merges both groups
+# into data/fitted_functions/ and records which is which.
+fits:
+	$(PY) scripts/01_fit_functions.py --config configs/fit_usgs.yaml \
+		--skip-shipped --jobs $(JOBS) --overwrite
+	$(PY) scripts/collect_fits.py
+
+# Single-guess fits, for comparison only. Writes to outputs/fit_usgs/base_fits/ and
+# never touches the grid results.
+base:
+	$(PY) scripts/01_fit_functions.py --config configs/fit_usgs.yaml \
+		--mode base --jobs $(JOBS) --overwrite
 
 dvalues:
 	$(PY) scripts/02_compute_dvalues.py
@@ -50,12 +67,13 @@ audit:
 all: tables figures audit
 
 rhine:
-	$(PY) scripts/01_fit_functions.py --config configs/fit_rhine.yaml
+	$(PY) scripts/01_fit_functions.py --config configs/fit_rhine.yaml \
+		--jobs $(JOBS) --overwrite
 	$(PY) scripts/06_rhine_summary.py
 	$(PY) scripts/fig_S05.py --format $(FORMAT)
 
 verify:
-	$(PY) scripts/verify_fits.py --samples 60 --functions 10 14 15
+	$(PY) scripts/verify_fits.py --samples 60
 
 deposit:
 	$(PY) scripts/build_data_deposit.py --phase all --deposit $(DEPOSIT)
@@ -64,4 +82,4 @@ test:
 	$(PY) -m pytest -q
 
 clean:
-	rm -rf outputs/tables outputs/water outputs/dvalues outputs/verify outputs/audit_manuscript_numbers.csv
+	rm -rf outputs figures/*.png figures/*.pdf

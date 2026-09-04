@@ -1,5 +1,5 @@
-# 3 USGS samples through all 25 functions. Finishes in seconds; used by
-# `make smoke` and by tests/test_smoke_pipeline.py.
+# 3 CONUS samples through all 25 functions, grid-searched. Seconds; used by
+# `make smoke` and by tests/test_pipeline.py.
 
 project:
   name: psd-gig-smoke
@@ -20,8 +20,7 @@ runtime:
   progress: true
   overwrite: true
   limit_samples: 3
-  checkpoint_every: 1000
   grid_chunk_samples: 10
-  write_grid_search_all: true
+  write_grid_search_all: false
   progress_tracker: true
   progress_log_every: 1

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from psd_gig import function_library as funcs  # noqa: E402
-from psd_gig.fit_specs import FUNCTION_SPECS  # noqa: E402
+from psd_gig.fit_specs import FUNCTION_SPECS, SHIPPED_FROM_ARCHIVE  # noqa: E402
 
 DATA = ROOT / "data"
 GRID = np.logspace(np.log2(1 / 64), np.log2(256), 200, base=2)
@@ -36,7 +36,7 @@ def test_cdf_is_finite_over_the_grain_size_range(spec):
     ``test_headline_fits_are_valid_distributions``.
     """
     guess = spec.base_initial_guess or tuple([1.0] * spec.n_params)
-    x = np.log2(GRID) if spec.base_x_transform == "log2" else GRID
+    x = np.log2(GRID) if spec.x_transform == "log2" else GRID
     with np.errstate(all="ignore"):
         y = np.asarray(funcs.__dict__[spec.func.__name__](x, *guess), dtype=float)
     assert np.isfinite(y).sum() > 20, f"{spec.id} produced almost no finite values"
@@ -78,7 +78,7 @@ WELL_BEHAVED = ["GLH_p05", "GLH_p1", "Tanh", "Lognormal", "GIG_2p", "Weibull",
 def test_headline_fits_are_valid_distributions(label, measured_ranges):
     """Every function the paper's conclusions depend on is a proper CDF when fitted."""
     spec = next(s for s in FUNCTION_SPECS if s.label == label)
-    path = DATA / "fitted_functions" / f"fits_F{spec.number:02d}_{spec.label}.csv"
+    path = DATA / "fitted_functions" / spec.output_name
     fit = pd.read_csv(path).dropna(subset=["fitted_A"])
     fit["sample_ID"] = fit["sample_ID"].astype(int)
     sample = fit.sample(n=min(50, len(fit)), random_state=0)
@@ -94,7 +94,7 @@ def test_headline_fits_are_valid_distributions(label, measured_ranges):
                 np.isfinite(parameters)):
             continue
         grid = np.logspace(np.log2(bounds.d_min), np.log2(bounds.d_max), 80, base=2)
-        x = np.log2(grid) if spec.base_x_transform == "log2" else grid
+        x = np.log2(grid) if spec.x_transform == "log2" else grid
         with np.errstate(all="ignore"):
             y = np.asarray(spec.func(x, *parameters), dtype=float)
         y = y[np.isfinite(y)]
@@ -134,10 +134,49 @@ def test_function_count_and_families():
     assert sum(spec.n_params == 3 for spec in FUNCTION_SPECS) == 10
 
 
-def test_grid_searched_functions_are_the_documented_nine():
-    grid_searched = {spec.label for spec in FUNCTION_SPECS if spec.grid}
-    assert grid_searched == {"GLH_p05", "GLH_p1", "Lognormal", "NIG", "GIG_2p",
-                             "Weibull", "GLH", "Logn_PL", "GIG_3p"}
+def test_every_function_is_grid_searched():
+    """One selection procedure for all 25, so BIC comparisons are like for like."""
+    assert all(len(spec.grid) > 1 for spec in FUNCTION_SPECS)
+    counts = {spec.label: len(spec.grid) for spec in FUNCTION_SPECS}
+    # Three functions keep the narrower grid their shipped fits were produced with.
+    assert counts["GLH_p05"] == counts["GLH_p1"] == 20
+    assert counts["GIG_2p"] == 25
+    assert all(counts[s.label] == 50 for s in FUNCTION_SPECS
+               if s.n_params == 2 and s.label not in {"GLH_p05", "GLH_p1", "GIG_2p"})
+    assert all(counts[s.label] == 8 for s in FUNCTION_SPECS if s.n_params == 3)
+
+
+def test_shipped_functions_are_the_documented_nine():
+    assert set(SHIPPED_FROM_ARCHIVE) == {5, 6, 10, 12, 14, 15, 16, 18, 25}
+
+
+@pytest.mark.skipif(not (DATA / "usgs_psd_samples_qc.csv").exists(),
+                    reason="run scripts/00_fetch_inputs.py first")
+def test_grid_search_uses_each_function_s_own_x_transform():
+    """The three GLH functions are fitted against log2(D); the rest against D.
+
+    Regression test: the grid search once hard-coded linear x, which silently
+    disagreed with the shipped GLH fits.
+    """
+    from psd_gig.config import load_config
+    from psd_gig.fit_data import load_diameter_lookup, load_input_data
+    from psd_gig.fitting import grid_search_dataframe
+
+    config = load_config(ROOT / "configs" / "fit_usgs.yaml")
+    data, size_columns = load_input_data(config)
+    lookup = load_diameter_lookup(config, size_columns)
+    spec = next(s for s in FUNCTION_SPECS if s.label == "GLH_p1")
+    assert spec.x_transform == "log2"
+
+    subset = data.head(3)
+    refit, _ = grid_search_dataframe(
+        spec, subset, lookup, size_columns, maxfev=20000, progress=False,
+        grid_all_path=None, write_grid_search_all=False, grid_chunk_samples=10**9)
+    shipped = pd.read_csv(DATA / "fitted_functions" / spec.output_name).set_index("sample_ID")
+    refit = refit.set_index(refit["sample_ID"].astype(int))
+    common = refit.index.intersection(shipped.index)
+    assert len(common) >= 3
+    assert np.allclose(refit.loc[common, "BIC"], shipped.loc[common, "BIC"], atol=1e-6)
 
 
 # ------------------------------------------------------------------- metrics
@@ -226,8 +265,25 @@ def test_smoke_pipeline_runs():
          "--config", "configs/fit_smoke.yaml"],
         cwd=ROOT, capture_output=True, text=True, timeout=600)
     assert result.returncode == 0, result.stderr[-2000:]
-    written = sorted((ROOT / "outputs" / "fit_smoke" / "base_fits").glob("*.csv"))
+    written = sorted((ROOT / "outputs" / "fit_smoke" / "fitted_functions").glob("fits_F*.csv"))
     assert len(written) == 25
+
+
+@pytest.mark.skipif(not (DATA / "usgs_psd_samples_qc.csv").exists(),
+                    reason="run scripts/00_fetch_inputs.py first")
+def test_base_mode_writes_to_its_own_folder():
+    """`--mode base` must not overwrite the grid results."""
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "01_fit_functions.py"),
+         "--config", "configs/fit_smoke.yaml", "--mode", "base",
+         "--functions", "1", "--overwrite"],
+        cwd=ROOT, capture_output=True, text=True, timeout=600)
+    assert result.returncode == 0, result.stderr[-2000:]
+    base = ROOT / "outputs" / "fit_smoke" / "base_fits" / "fits_F01_Algeb.csv"
+    grid = ROOT / "outputs" / "fit_smoke" / "fitted_functions" / "fits_F01_Algeb.csv"
+    assert base.exists() and grid.exists()
+    assert "init_A" in pd.read_csv(grid).columns
+    assert "init_A" not in pd.read_csv(base).columns
 
 
 @pytest.mark.skipif(not (DATA / "usgs_psd_samples_qc.csv").exists(),

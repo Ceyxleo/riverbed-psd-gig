@@ -135,7 +135,7 @@ def base_fit_dataframe(
                 current_sample_ID=sample["sample_ID"],
                 append_event=False,
             )
-        x, y = _sample_xy(sample, d_lookup, size_columns, x_transform=spec.base_x_transform)
+        x, y = _sample_xy(sample, d_lookup, size_columns, x_transform=spec.x_transform)
         fit = fit_one_sample(
             spec,
             x,
@@ -200,9 +200,6 @@ def grid_search_dataframe(
     tracker: ProgressTracker | None = None,
     progress_log_every: int = 100,
 ) -> tuple[pd.DataFrame, pd.DataFrame | None]:
-    if spec.grid is None:
-        raise ValueError(f"{spec.id} does not define a grid search.")
-
     init_values = spec.grid.initial_values()
     total_samples = len(data)
     total_curve_fits = total_samples * len(init_values)
@@ -243,7 +240,8 @@ def grid_search_dataframe(
                 message=f"fitting {len(init_values)} initial guesses for current sample",
                 append_event=False,
             )
-        x, y = _sample_xy(sample, d_lookup, size_columns, x_transform="linear")
+        x, y = _sample_xy(sample, d_lookup, size_columns,
+                          x_transform=spec.x_transform)
         sample_rows = []
         for initial_guess in init_values:
             fit = fit_one_sample(spec, x, y, p0=initial_guess, retry_p0=None, maxfev=maxfev)

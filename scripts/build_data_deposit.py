@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Assemble the Zenodo data deposit.
 
-``--phase archive`` copies the inputs and the fitted parameters out of the
-analysis tree given by ``--source``. ``--phase derived`` copies the tables this
-repository regenerates. ``--phase all`` does both and writes ``manifest.csv``.
+The deposit holds what cannot be regenerated: the screened samples, the inputs the
+water-security calculation needs, and the final fitted parameters for both datasets.
+Everything else in the paper -- percentiles, hydraulics, tables, figures -- is
+regenerated from these by the code repository, so it is not deposited.
+
+``--phase inputs`` builds the input tables from the analysis tree given by ``--source``.
+``--phase fits`` copies the final fitted parameters out of this repository.
+``--phase all`` does both and writes ``manifest.csv``.
 
     python scripts/build_data_deposit.py --phase all
 """
@@ -11,22 +16,23 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import shutil
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from psd_gig.fit_specs import FUNCTION_SPECS  # noqa: E402
+from psd_gig.fit_specs import FUNCTION_SPECS, SHIPPED_FROM_ARCHIVE  # noqa: E402
 
 DEFAULT_SOURCE = ROOT.parent.parent / "Lingbo"
 DEFAULT_DEPOSIT = ROOT.parent / "psd-gig-data-v1.0.0"
 
-FUNCTIONS = ("GIG_2p", "Lognormal", "Weibull")
+SAMPLES_DIR = "01_conus_samples"
+WATER_DIR = "02_water_security_inputs"
+FITS_DIR = "03_fitted_functions"
+RHINE_DIR = "04_rhine"
 
 SAMPLE_ID_COLS = ["MonitoringLocationIdentifier", "site_no", "sample_ID"]
 ACTIVITY_COLS = [
@@ -70,7 +76,7 @@ FUNCTION_NAMES = {
 }
 
 RHINE_NOTICE = """\
-# Lower Rhine data are not redistributed here
+# Lower Rhine: the samples themselves are not redistributed here
 
 The independent validation samples come from:
 
@@ -79,16 +85,16 @@ The independent validation samples come from:
 > https://doi.org/10.4121/eb78267a-137b-4f61-bb7e-6549915a24c7
 
 That dataset is published under **CC BY-NC-ND 4.0**, which permits neither
-redistribution nor derivative works. We therefore cannot include the samples, or
-the per-sample fitted parameters derived from them, in this deposit.
+redistribution nor derivative works, so we cannot include the samples in this deposit.
+The fitted parameters we report from them are in `../03_fitted_functions/rhine/`.
 
-To reproduce the Lower Rhine results (Supplementary Fig. S5 and the Rhine
-paragraph of the main text):
+To reproduce the Lower Rhine results (Supplementary Fig. S5 and the Rhine paragraph of
+the main text):
 
 1. Download the dataset from the DOI above and accept its licence.
-2. Extract the bed-sediment gradation table for the Lower Rhine and its branches
-   into a CSV with one row per sample and one column per sieve size, each column
-   named for its size in millimetres:
+2. Extract the bed-sediment gradation table for the Lower Rhine and its branches into a
+   CSV with one row per sample and one column per sieve size, each column named for its
+   size in millimetres:
 
        river_km,river_name,site_no,0.5 mm,2 mm,8 mm,31.5 mm,125 mm,sample_ID
        849,Bovenrijn-Waal,Bovenrijn-Waal_849,8.61,19.4,41.77,92.81,100.0,rhine_1
@@ -96,7 +102,9 @@ paragraph of the main text):
 3. Save it in the code repository as `data/rhine/rhine_data_to_fit.csv`.
 4. Run `make rhine`.
 
-Aggregate Rhine results as published in the paper are in `06_tables/`.
+Panels a and b of Fig. S5 can be redrawn from the deposited parameters alone. Panel c
+also needs the measured curves, because the Folk-Ward skewness class is computed from
+them, so it requires step 1.
 """
 
 
@@ -108,14 +116,14 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def phase_archive(source: Path, deposit: Path) -> None:
-    samples_dir = deposit / "01_samples"
-    fits_dir = deposit / "02_fits"
-    hydro_dir = deposit / "04_hydraulics"
-    for directory in (samples_dir, fits_dir, hydro_dir, deposit / "05_rhine"):
+def phase_inputs(source: Path, deposit: Path) -> None:
+    """The tables that cannot be regenerated: screened samples and hydraulic inputs."""
+    samples_dir = deposit / SAMPLES_DIR
+    water_dir = deposit / WATER_DIR
+    for directory in (samples_dir, water_dir, deposit / RHINE_DIR):
         directory.mkdir(parents=True, exist_ok=True)
 
-    print("archive:")
+    print("inputs:")
     final = pd.read_csv(source / "output_data" / "DATA_final_all_optfuncs.csv",
                         dtype={"site_no": str}, low_memory=False)
     codes = [c for c in final.columns if c.startswith("p") and c[1:].isdigit()]
@@ -149,31 +157,6 @@ def phase_archive(source: Path, deposit: Path) -> None:
     sizes.sort_values("size_mm").to_csv(samples_dir / "sieve_code_sizes.csv", index=False)
     print(f"  sieve_code_sizes.csv             {len(sizes)} grades")
 
-    catalog = []
-    for spec in FUNCTION_SPECS:
-        matches = sorted((source / "fitted_functions").glob(f"F{spec.number:02d}_*.csv"))
-        if not matches:
-            raise FileNotFoundError(f"No fit file for F{spec.number:02d} {spec.label}")
-        fit = pd.read_csv(matches[0], dtype={"site_no": str})
-        fit["sample_ID"] = fit["sample_ID"].astype(int)
-        keep = ["site_no", "sample_ID"]
-        keep += [c for c in ("fitted_A", "fitted_B", "fitted_C") if c in fit.columns]
-        keep += ["RMSE", "R^2", "AIC", "BIC"]
-        fit[keep].rename(columns={"R^2": "R2"}).to_csv(
-            fits_dir / f"fits_F{spec.number:02d}_{spec.label}.csv", index=False)
-        full_name, source_field = FUNCTION_NAMES[spec.number]
-        catalog.append({
-            "number": spec.number, "abbreviation": spec.label, "full_name": full_name,
-            "source_field": source_field, "n_parameters": spec.n_params,
-            "grid_searched": spec.grid is not None,
-            "n_initial_guesses": len(spec.grid.initial_values()) if spec.grid else 2,
-            "fit_x_transform": spec.base_x_transform,
-            "implementation": f"psd_gig.function_library.{spec.func.__name__}",
-            "file": f"fits_F{spec.number:02d}_{spec.label}.csv",
-        })
-    pd.DataFrame(catalog).to_csv(fits_dir / "function_catalog.csv", index=False)
-    print(f"  fits_F01..F25 + function_catalog.csv")
-
     stations_comid = pd.read_csv(source / "water_security" / "stations_comid_hyriver.csv",
                                  dtype={"site_no": str, "comid": "Int64"})
     stations_comid = stations_comid.rename(columns={"comid": "COMID"}).drop_duplicates("site_no")
@@ -184,42 +167,55 @@ def phase_archive(source: Path, deposit: Path) -> None:
     ).drop_duplicates("COMID")
     nhd = stations_comid.merge(attrs, on="COMID", how="left")
     nhd = nhd[nhd["site_no"].isin(set(final["site_no"]))].sort_values("site_no")
-    nhd.to_csv(hydro_dir / "station_nhdplus_attributes.csv", index=False)
+    nhd.to_csv(water_dir / "station_nhdplus_attributes.csv", index=False)
     print(f"  station_nhdplus_attributes.csv   {len(nhd):,} rows")
 
     q100 = pd.read_csv(source / "output_data" / "hydro_q100_cache.csv", dtype={"site_no": str})
-    q100.to_csv(hydro_dir / "station_q100_logpearson3.csv", index=False)
+    q100.to_csv(water_dir / "station_q100_logpearson3.csv", index=False)
     print(f"  station_q100_logpearson3.csv     {len(q100):,} rows")
 
-    (deposit / "05_rhine" / "README.md").write_text(RHINE_NOTICE, encoding="utf-8")
-    print("  05_rhine/README.md               licence notice")
+    (deposit / RHINE_DIR / "README.md").write_text(RHINE_NOTICE, encoding="utf-8")
+    print("  04_rhine/README.md               licence notice")
 
 
-DERIVED = [
-    ("outputs/dvalues/dvalues.csv", "03_percentiles"),
-    ("outputs/water/sample_water_metrics.csv", "04_hydraulics"),
-    ("outputs/tables/table_S2_median_metrics.csv", "06_tables"),
-    ("outputs/tables/table_S3_best_counts.csv", "06_tables"),
-    ("outputs/tables/table_S4_by_n_parameters.csv", "06_tables"),
-    ("outputs/tables/table_S5_significance.csv", "06_tables"),
-    ("outputs/tables/figure4_delta_bic_summary.csv", "06_tables"),
-    ("outputs/tables/figure5_rmsre_matrix.csv", "06_tables"),
-    ("outputs/rhine/rhine_function_summary.csv", "06_tables"),
-    ("outputs/rhine/rhine_best_fit_by_skew_class.csv", "06_tables"),
-]
+def phase_fits(deposit: Path) -> None:
+    """The final grid-searched parameters for both datasets, plus the function catalog."""
+    print("fits:")
+    sources = {
+        "conus": ROOT / "data" / "fitted_functions",
+        "rhine": ROOT / "outputs" / "fit_rhine" / "fitted_functions",
+    }
+    for dataset, source_dir in sources.items():
+        target = deposit / FITS_DIR / dataset
+        target.mkdir(parents=True, exist_ok=True)
+        written = 0
+        for spec in FUNCTION_SPECS:
+            path = source_dir / spec.output_name
+            if not path.exists():
+                print(f"  MISSING {dataset}/{spec.output_name}")
+                continue
+            fit = pd.read_csv(path, dtype={"site_no": str})
+            keep = ["site_no", "sample_ID"]
+            keep += [c for c in ("fitted_A", "fitted_B", "fitted_C") if c in fit.columns]
+            keep += [c for c in ("RMSE", "R2", "AIC", "BIC") if c in fit.columns]
+            fit[keep].to_csv(target / spec.output_name, index=False)
+            written += 1
+        print(f"  {FITS_DIR}/{dataset}/  {written} files")
 
-
-def phase_derived(deposit: Path) -> None:
-    print("derived:")
-    for relative, group in DERIVED:
-        source_path = ROOT / relative
-        if not source_path.exists():
-            print(f"  MISSING {relative} -- run the pipeline first")
-            continue
-        target_dir = deposit / group
-        target_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_path, target_dir / source_path.name)
-        print(f"  {group}/{source_path.name}")
+    catalog = []
+    for spec in FUNCTION_SPECS:
+        full_name, source_field = FUNCTION_NAMES[spec.number]
+        catalog.append({
+            "number": spec.number, "abbreviation": spec.label, "full_name": full_name,
+            "source_field": source_field, "n_parameters": spec.n_params,
+            "n_initial_guesses": len(spec.grid),
+            "implementation": f"psd_gig.function_library.{spec.func.__name__}",
+            "conus_maxfev": 1000000 if spec.number in SHIPPED_FROM_ARCHIVE else 20000,
+            "rhine_maxfev": 20000,
+            "file": spec.output_name,
+        })
+    pd.DataFrame(catalog).to_csv(deposit / FITS_DIR / "function_catalog.csv", index=False)
+    print(f"  {FITS_DIR}/function_catalog.csv    {len(catalog)} functions")
 
 
 def write_manifest(deposit: Path) -> None:
@@ -241,16 +237,16 @@ def write_manifest(deposit: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--phase", choices=["archive", "derived", "all"], default="all")
+    parser.add_argument("--phase", choices=["inputs", "fits", "all"], default="all")
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--deposit", type=Path, default=DEFAULT_DEPOSIT)
     args = parser.parse_args()
 
     args.deposit.mkdir(parents=True, exist_ok=True)
-    if args.phase in {"archive", "all"}:
-        phase_archive(args.source, args.deposit)
-    if args.phase in {"derived", "all"}:
-        phase_derived(args.deposit)
+    if args.phase in {"inputs", "all"}:
+        phase_inputs(args.source, args.deposit)
+    if args.phase in {"fits", "all"}:
+        phase_fits(args.deposit)
     write_manifest(args.deposit)
     return 0
 

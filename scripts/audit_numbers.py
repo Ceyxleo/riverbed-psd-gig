@@ -30,6 +30,14 @@ OUT = ROOT / "outputs"
 RESULTS: list[tuple[str, str, str, str, str]] = []
 
 
+def _fmt(value) -> str:
+    """Counts read as counts; everything else keeps four significant figures."""
+    number = float(value)
+    if number == int(number) and abs(number) >= 1000:
+        return f"{int(number):,}"
+    return f"{number:.4g}"
+
+
 def record(section: str, claim: str, published, computed, tolerance=0.05,
            note: str = "") -> None:
     if computed is None:
@@ -40,7 +48,7 @@ def record(section: str, claim: str, published, computed, tolerance=0.05,
         RESULTS.append((section, claim, published, str(computed), status))
         return
     ok = abs(float(computed) - float(published)) <= tolerance
-    RESULTS.append((section, claim, f"{published:g}", f"{float(computed):.4g}",
+    RESULTS.append((section, claim, _fmt(published), _fmt(computed),
                     "OK" if ok else "MISMATCH"))
     if note and not ok:
         RESULTS.append((section, f"    note: {note}", "", "", ""))

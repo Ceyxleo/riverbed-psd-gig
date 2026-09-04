@@ -6,7 +6,7 @@
 (c) best-fit composition within each Folk-Ward skewness class, where the best-fit
     set holds every function within 2 BIC units of the sample minimum.
 
-Run `python scripts/05_rhine_summary.py` first; this reads its outputs.
+Run `python scripts/06_rhine_summary.py` first; this reads its outputs.
 
     python scripts/fig_S05.py
 """
@@ -28,7 +28,9 @@ from matplotlib.gridspec import GridSpec
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT / "src"))
 from _figsave import add_format_argument, save_figure  # noqa: E402
+from psd_gig.fit_specs import FUNCTION_SPECS_BY_LABEL  # noqa: E402
 
 FUNCTIONS = ["GIG_2p", "Lognormal", "Weibull"]
 FUNCTION_LABELS = {"GIG_2p": "GIG", "Lognormal": "Lognormal", "Weibull": "Weibull"}
@@ -118,12 +120,11 @@ def main() -> int:
     samples = pd.read_csv(args.rhine / "rhine_sample_table.csv", dtype={"sample_ID": str})
 
     bic, rmse = {}, {}
-    numbers = {"GIG_2p": 14, "Lognormal": 10, "Weibull": 15}
     for label in FUNCTIONS:
-        matches = sorted(args.fits.glob(f"F{numbers[label]:02d}_*.csv"))
-        if not matches:
+        path = args.fits / FUNCTION_SPECS_BY_LABEL[label].output_name
+        if not path.exists():
             raise FileNotFoundError(f"No Lower Rhine fit for {label}; run `make rhine` first")
-        fit = pd.read_csv(matches[0])
+        fit = pd.read_csv(path)
         fit["sample_ID"] = fit["sample_ID"].astype(str)
         fit = fit.drop_duplicates("sample_ID").set_index("sample_ID")
         bic[label] = fit["BIC"]
