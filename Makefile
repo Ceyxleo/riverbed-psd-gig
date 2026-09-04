@@ -11,7 +11,7 @@ PY ?= python
 DEPOSIT ?= ../psd-gig-data-v1.0.0
 FORMAT ?= png
 
-.PHONY: setup inputs smoke water tables figures audit all rhine verify deposit test clean
+.PHONY: setup inputs smoke dvalues water tables figures audit all rhine verify deposit test clean
 
 setup:
 	conda env create -f environment.yml
@@ -22,12 +22,15 @@ inputs:
 smoke:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_smoke.yaml
 
-water:
-	$(PY) scripts/02_water_metrics.py
+dvalues:
+	$(PY) scripts/02_compute_dvalues.py
+
+water: dvalues
+	$(PY) scripts/03_water_metrics.py
 
 tables: water
-	$(PY) scripts/03_bic_tables.py
-	$(PY) scripts/04_significance.py
+	$(PY) scripts/04_bic_tables.py
+	$(PY) scripts/05_significance.py
 
 figures: tables
 	$(PY) scripts/fig_01.py --format $(FORMAT)
@@ -48,7 +51,7 @@ all: tables figures audit
 
 rhine:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_rhine.yaml
-	$(PY) scripts/05_rhine_summary.py
+	$(PY) scripts/06_rhine_summary.py
 	$(PY) scripts/fig_S05.py --format $(FORMAT)
 
 verify:
@@ -61,4 +64,4 @@ test:
 	$(PY) -m pytest -q
 
 clean:
-	rm -rf outputs/tables outputs/water outputs/verify outputs/audit_manuscript_numbers.csv
+	rm -rf outputs/tables outputs/water outputs/dvalues outputs/verify outputs/audit_manuscript_numbers.csv

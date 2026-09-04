@@ -108,8 +108,6 @@ def test_headline_fits_are_valid_distributions(label, measured_ranges):
     assert checked >= 20, f"{spec.id}: only {checked} usable parameter sets"
 
 
-@pytest.mark.skipif(not (DATA / "fitted_functions").exists(),
-                    reason="run scripts/00_fetch_inputs.py first")
 def test_lognormal_d84_extrapolates_far_beyond_the_coarsest_sieve():
     """The extrapolation caveat behind the D84 comparison in Fig. 5.
 
@@ -117,7 +115,10 @@ def test_lognormal_d84_extrapolates_far_beyond_the_coarsest_sieve():
     grade is 128 mm, yet the Lognormal fits imply D84 values far above both for a
     handful of samples. Those samples dominate Lognormal's D84 RMSRE.
     """
-    percentiles = pd.read_csv(DATA / "dvalues.csv", dtype={"site_no": str})
+    path = ROOT / "outputs" / "dvalues" / "dvalues.csv"
+    if not path.exists():
+        pytest.skip("run scripts/02_compute_dvalues.py first")
+    percentiles = pd.read_csv(path, dtype={"site_no": str})
     largest_grade = 256.0
     beyond = percentiles["D84_Lognormal"] > largest_grade
     assert beyond.any(), "expected at least one Lognormal D84 beyond the coarsest sieve"
@@ -169,7 +170,7 @@ def test_fredle_index_uses_four_percentiles():
     """FI = sqrt(D16 D84) / sqrt(D75/D25) -- four percentiles, not D84 alone."""
     sys.path.insert(0, str(ROOT / "scripts"))
     import importlib.util
-    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "02_water_metrics.py")
+    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "03_water_metrics.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
@@ -195,7 +196,7 @@ def test_fredle_index_uses_four_percentiles():
 def test_channel_reynolds_number_depends_on_grain_size():
     """Re is not independent of grain size: U scales as D84^(-1/6)."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "02_water_metrics.py")
+    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "03_water_metrics.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 

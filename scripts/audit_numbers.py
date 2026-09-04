@@ -65,7 +65,9 @@ def check_counts() -> None:
         return
     rows = fig5.set_index("variable")
     record("counts", "samples with D values (Fig. 5)", 19763,
-           rows.loc["D84", "n_samples"], 0)
+           rows.loc["D84", "n_samples"], 0,
+           note="one sample (25839) dropped: its fitted GIG CDF is not numerically "
+                "evaluable, so no percentile can be solved from it")
     record("counts", "bedload samples", 14567, rows.loc["bedload_transport", "n_samples"], 0)
     record("counts", "bedload sites", 1466, rows.loc["bedload_transport", "n_sites"], 0)
     record("counts", "flood-stage samples", 12930, rows.loc["flood_stage_100yr", "n_samples"], 0)
@@ -140,20 +142,27 @@ def check_fig5() -> None:
         record("fig5", "D84 RMSRE, GIG (%)", 4.1, None)
         return
     rows = fig5.set_index("variable")
+    # The published values were computed from percentiles solved by a grid scan of
+    # the fitted CDF. This pipeline inverts the CDF analytically, which lands on
+    # each target percentile to ~1e-11 instead of overshooting it, so Lognormal's
+    # and Weibull's percentile errors come out slightly lower and GIG's relative
+    # advantage slightly smaller. Where a cell disagrees below, the manuscript
+    # value is the one to update.
+    method = "percentiles now solved analytically rather than by a grid scan"
     published = {
         "D16": (5.5, 7.3, 10.5), "D50": (3.3, 5.5, 7.0), "D84": (4.1, 11.6, 8.7),
     }
     for variable, values in published.items():
         for function, value in zip(("GIG_2p", "Lognormal", "Weibull"), values):
             record("fig5", f"{variable} RMSRE, {function} (%)", value,
-                   rows.loc[variable, f"RMSRE_{function}_percent"], 0.06)
+                   rows.loc[variable, f"RMSRE_{function}_percent"], 0.06, method)
     reductions = {"bedload_transport": (47.2, 54.3), "critical_shear_stress": (64.7, 52.9),
                   "flood_stage_100yr": (58.8, 62.3), "fredle_index": (29.1, 42.5)}
     for variable, (versus_lognormal, versus_weibull) in reductions.items():
         record("fig5", f"{variable}: reduction vs Lognormal (%)", versus_lognormal,
-               rows.loc[variable, "reduction_vs_Lognormal_percent"], 0.1)
+               rows.loc[variable, "reduction_vs_Lognormal_percent"], 0.1, method)
         record("fig5", f"{variable}: reduction vs Weibull (%)", versus_weibull,
-               rows.loc[variable, "reduction_vs_Weibull_percent"], 0.1)
+               rows.loc[variable, "reduction_vs_Weibull_percent"], 0.1, method)
     record("fig5", "critical shear stress RMSRE equals D84 RMSRE", "yes",
            "yes" if abs(rows.loc["critical_shear_stress", "RMSRE_GIG_2p_percent"]
                         - rows.loc["D84", "RMSRE_GIG_2p_percent"]) < 1e-9 else "no")
@@ -245,10 +254,11 @@ def check_table_s5() -> None:
                  "Critical shear stress": (0.17, 1.34, 0.75),
                  "100-year flood stage": (0.001, 0.008, 0.010),
                  "Fredle Index": (0.22, 0.45, 0.68)}
+    method = "percentiles now solved analytically rather than by a grid scan"
     for variable, values in published.items():
         for function, value in zip(("GIG_2p", "Lognormal", "Weibull"), values):
             record("tableS5", f"{variable}: mean SRE, {function}", value,
-                   rows.loc[variable, f"meanSRE_{function}"], 0.006)
+                   rows.loc[variable, f"meanSRE_{function}"], 0.006, method)
 
 
 SECTIONS = {

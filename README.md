@@ -33,10 +33,11 @@ the pipeline just produced and exits non-zero if any disagree.
 |---|---|---|
 | 0 | `00_fetch_inputs.py` | copies the deposit's tables into `data/` |
 | 1 | `01_fit_functions.py` | fitted parameters for the 25 functions |
-| 2 | `02_water_metrics.py` | τ\*, Re, Re\*, bedload, critical shear stress, h₁₀₀, Fredle Index; the Fig. 5 matrix |
-| 3 | `03_bic_tables.py` | Tables S2–S4, the Fig. 4 summary, and the BIC/RMSE matrices |
-| 4 | `04_significance.py` | Table S5 |
-| 5 | `05_rhine_summary.py` | Lower Rhine validation numbers |
+| 2 | `02_compute_dvalues.py` | D05–D95 for GIG, Lognormal, Weibull and the best-fit reference |
+| 3 | `03_water_metrics.py` | τ\*, Re, Re\*, bedload, critical shear stress, h₁₀₀, Fredle Index; the Fig. 5 matrix |
+| 4 | `04_bic_tables.py` | Tables S2–S4, the Fig. 4 summary, and the BIC/RMSE matrices |
+| 5 | `05_significance.py` | Table S5 |
+| 6 | `06_rhine_summary.py` | Lower Rhine validation numbers |
 | — | `fig_01.py` … `fig_S05.py` | Figures 1–5 and S1–S5 |
 | — | `audit_numbers.py` | every manuscript number vs. the regenerated outputs |
 | — | `verify_fits.py` | re-fits a subset and compares against the deposited parameters |
@@ -72,6 +73,19 @@ The subset is half random and half drawn from the 924 samples carrying additiona
 grades, so it exercises the configuration-sensitive case. Agreement is 100% for GIG_2p,
 Lognormal and Weibull.
 
+## Percentiles
+
+`02_compute_dvalues.py` solves `F(D) = q` for each fitted distribution, analytically wherever
+an inverse exists — `geninvgauss.ppf` for GIG, `exp(mu + sigma Phi^-1(q))` for Lognormal,
+`lambda (-ln(1-q))^(1/k)` for Weibull — with a bracketed Brent root-find as fallback. Solved
+percentiles land on their target to better than 1e-10, and there is no upper bound on D.
+
+Each solved value is then round-tripped through the CDF and discarded if it does not return the
+target percentile to within 0.01 percentage points. One sample (25839) fails this: its fitted
+GIG parameters are extreme enough — β ≈ 2 × 10⁻⁴ — that `geninvgauss.cdf` returns values above
+100%, so no inverse of it can be trusted. Its D75 and D84 are therefore missing, and it drops
+out of the Fig. 5 rows, giving n = 19,762 rather than 19,763.
+
 ## Lower Rhine
 
 The independent validation samples come from a **CC BY-NC-ND** dataset that cannot be
@@ -100,9 +114,9 @@ Three points affect interpretation and are enforced by tests:
   contains D84 directly.
 - **Critical shear stress is linear in D84**, so its relative error is identically D84's. Its
   row in Fig. 5 is a consistency check, not independent evidence.
-- **Bedload is defined only above the threshold of motion.** Of 19,763 samples, 4,784 are
+- **Bedload is defined only above the threshold of motion.** Of 19,762 samples, 4,783 are
   excluded because τ\* ≤ τ\*c = 0.047 for at least one of the four D84 estimates, and 412 more
-  because the reference transport rounds to zero, leaving 14,567.
+  because the reference transport rounds to zero, leaving 14,567 from 1,466 sites.
 
 ## Citation
 

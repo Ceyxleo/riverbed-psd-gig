@@ -26,7 +26,6 @@ from psd_gig.fit_specs import FUNCTION_SPECS  # noqa: E402
 DEFAULT_SOURCE = ROOT.parent.parent / "Lingbo"
 DEFAULT_DEPOSIT = ROOT.parent / "psd-gig-data-v1.0.0"
 
-PERCENTILES = (5, 16, 25, 50, 75, 84, 95)
 FUNCTIONS = ("GIG_2p", "Lognormal", "Weibull")
 
 SAMPLE_ID_COLS = ["MonitoringLocationIdentifier", "site_no", "sample_ID"]
@@ -107,44 +106,6 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def build_percentiles(source: Path, final: pd.DataFrame, deposit: Path) -> None:
-    """One percentile table, assembled from the analysis tree.
-
-    Percentiles are solved from the fitted CDFs in the original analysis; they are
-    carried through unchanged rather than re-derived. `_reference` is the mean over
-    the functions in each sample's best-fit set.
-    """
-    target = deposit / "03_percentiles"
-    target.mkdir(parents=True, exist_ok=True)
-
-    table = final[["sample_ID", "site_no", "best_function(s)", "num_functions",
-                   "skew_FW", "stream_type", "sample_ST_type"]].copy()
-    table["sample_ID"] = table["sample_ID"].astype(int)
-    index = {name: i for i, name in enumerate(FUNCTIONS)}
-
-    for percentile in PERCENTILES:
-        label = f"D{percentile:02d}"
-        legacy = pd.read_csv(source.parent / "psd" / "Dvalues" / f"{label}_values.csv")
-        legacy["sample_ID"] = legacy["sample_ID"].astype(int)
-        table = table.merge(legacy[["sample_ID"] + [f"{label}_{n}" for n in FUNCTIONS]],
-                            on="sample_ID", how="left")
-        matrix = table[[f"{label}_{n}" for n in FUNCTIONS]].to_numpy(float)
-        reference = np.full(len(table), np.nan)
-        for row, best in enumerate(table["best_function(s)"]):
-            picks = [index[p.strip()] for p in str(best).split("&") if p.strip() in index]
-            if picks and np.isfinite(matrix[row, picks]).any():
-                reference[row] = np.nanmean(matrix[row, picks])
-        table[f"{label}_reference"] = reference
-
-    ordered = ["sample_ID", "site_no", "best_function(s)", "num_functions", "skew_FW",
-               "stream_type", "sample_ST_type"]
-    for percentile in PERCENTILES:
-        label = f"D{percentile:02d}"
-        ordered += [f"{label}_reference"] + [f"{label}_{n}" for n in FUNCTIONS]
-    table[ordered].to_csv(target / "dvalues.csv", index=False)
-    print(f"  03_percentiles/dvalues.csv       {len(table):,} rows x {len(ordered)} cols")
 
 
 def phase_archive(source: Path, deposit: Path) -> None:
@@ -230,12 +191,12 @@ def phase_archive(source: Path, deposit: Path) -> None:
     q100.to_csv(hydro_dir / "station_q100_logpearson3.csv", index=False)
     print(f"  station_q100_logpearson3.csv     {len(q100):,} rows")
 
-    build_percentiles(source, final, deposit)
     (deposit / "05_rhine" / "README.md").write_text(RHINE_NOTICE, encoding="utf-8")
     print("  05_rhine/README.md               licence notice")
 
 
 DERIVED = [
+    ("outputs/dvalues/dvalues.csv", "03_percentiles"),
     ("outputs/water/sample_water_metrics.csv", "04_hydraulics"),
     ("outputs/tables/table_S2_median_metrics.csv", "06_tables"),
     ("outputs/tables/table_S3_best_counts.csv", "06_tables"),
