@@ -18,9 +18,10 @@ Three things this fixes relative to the submitted Table S5:
 * the test statistic column was headed "t-statistics", which is wrong for a
   signed-rank test. The Wilcoxon W is reported.
 * no statistic was actually given, only p-values. With n between 12,930 and
-  19,763 every p-value is far below any threshold, so the effect size (matched-
-  pairs rank-biserial correlation) and the win rate are reported alongside; they
-  are what actually distinguish the comparisons.
+  19,762 every p-value is far below any threshold, so the matched-pairs rank-biserial
+  correlation and the win rate are reported alongside; they are what actually
+  distinguish the comparisons. The win rate counts how often GIG wins, the
+  rank-biserial correlation weights those wins by how large they are.
 
     python scripts/05_significance.py
 """
@@ -91,8 +92,12 @@ def main() -> int:
             row[f"wilcoxon_p_one_sided_vs_{other}"] = float(p)
             row[f"n_nonzero_pairs_vs_{other}"] = nonzero
             row[f"gig_lower_error_share_vs_{other}_percent"] = float((difference > 0).mean() * 100)
+            # Matched-pairs rank-biserial correlation, (W+ - W-) / (W+ + W-).
+            # This uses the ranks, so it reflects how large GIG's wins are, not just
+            # how many there are -- the win-rate column already counts those.
+            total_rank_sum = nonzero * (nonzero + 1) / 2
             row[f"rank_biserial_vs_{other}"] = float(
-                (difference > 0).mean() - (difference < 0).mean())
+                (2 * w - total_rank_sum) / total_rank_sum) if total_rank_sum else float("nan")
 
     table = pd.DataFrame(rows)
     table.to_csv(args.out / "table_S5_significance.csv", index=False)
