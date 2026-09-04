@@ -12,6 +12,7 @@ import pandas as pd
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
+from _figsave import add_format_argument, save_figure
 from _figure1_common import (
     AXIS_COLOR,
     DATA_PATH,
@@ -42,10 +43,18 @@ FULL_XLIM = (1 / 64, 64)
 MID_XLIM = (1 / 16, 4)
 FULL_XTICKS = np.array([1 / 64, 1 / 16, 1 / 4, 1, 4, 16, 64], dtype=float)
 MID_XTICKS = np.array([1 / 16, 1 / 4, 1, 4], dtype=float)
-SAMPLE_STYLES = {
-    "P10": "-.",
-    "zero": "--",
-    "P90": "-",
+# Colour encodes the skewness class of the sample; line style encodes the
+# fitted function. Every panel therefore carries one of the two, held constant.
+SKEW_ORDER = ["P10", "zero", "P90"]
+SKEW_LABELS = {
+    "P10": "coarse-skewed",
+    "zero": "near-symmetric",
+    "P90": "fine-skewed",
+}
+SKEW_COLORS = {          # Okabe-Ito, colour-vision safe
+    "P10": "#0072B2",
+    "zero": "#E69F00",
+    "P90": "#009E73",
 }
 BOTTOM_FUNCTION_ORDER = ["Lognormal", "Weibull", "GIG_2p"]
 
@@ -179,173 +188,86 @@ def plot_single_samples(
     size_lookup: pd.Series,
     out_prefix: Path,
     n_grid: int,
+    fmt: str = "png",
 ) -> None:
     setup_style()
     x_grid = 2.0 ** np.linspace(np.log2(FULL_XLIM[0]), np.log2(FULL_XLIM[1]), n_grid)
-    fig, axes = plt.subplots(2, 3, figsize=(6.0, 4.0), sharex=False, sharey=False)
-    top_axes = axes[0]
-    bottom_axes = axes[1]
-    top_letters = ["a", "b", "c"]
-    bottom_letters = ["d", "e", "f"]
+    fig, axes = plt.subplots(2, 3, figsize=(6.4, 4.2), sharex=False, sharey=False)
 
-    for index, (ax, sample, letter) in enumerate(zip(top_axes, selected, top_letters)):
-        panel_max_y = 0.0
-        edges, observed_density = observed_density_steps(sample, size_lookup)
-        if len(edges) > 1:
-            ax.stairs(
-                observed_density,
-                edges,
-                baseline=0,
-                fill=True,
-                facecolor=OBS_FACE,
-                edgecolor=OBS_EDGE,
-                linewidth=0.85,
-                alpha=0.85,
-            )
-            panel_max_y = max(panel_max_y, np.nanmax(observed_density))
+    def panel_label(ax, letter: str, title: str) -> None:
+        ax.text(-0.02, 1.055, letter, transform=ax.transAxes, ha="left", va="bottom",
+                fontsize=9, fontweight="bold", color="black", clip_on=False)
+        ax.text(0.10, 1.055, title, transform=ax.transAxes, ha="left", va="bottom",
+                fontsize=6.6, color=AXIS_COLOR, clip_on=False)
 
-        for function_name in FUNCTION_ORDER:
-            fit_row = fit_row_for_sample(fits[function_name], sample)
-            density = eval_density(function_name, x_grid, fit_row)
-            density = np.asarray(density, dtype=float)
-            density[~np.isfinite(density)] = np.nan
-            density = np.clip(density, 0.0, np.inf)
-            panel_max_y = max(panel_max_y, np.nanmax(density))
-            ax.plot(
-                x_grid,
-                density,
-                color=FUNCTION_COLORS[function_name],
-                linestyle=FUNCTION_STYLES[function_name],
-                linewidth=1.25,
-            )
-
+    def finish(ax, panel_max_y: float, narrow: bool = False) -> None:
         style_axis(ax)
-        ax.text(
-            -0.02,
-            1.035,
-            letter,
-            transform=ax.transAxes,
-            ha="left",
-            va="bottom",
-            fontsize=9,
-            fontweight="bold",
-            color="black",
-            clip_on=False,
-        )
         ax.set_xscale("log", base=2)
-        if index == 1:
-            ax.set_xlim(*MID_XLIM)
-            ax.set_xticks(MID_XTICKS)
-            ax.set_xticklabels(format_relative_ticks(MID_XTICKS))
-        else:
-            ax.set_xlim(*FULL_XLIM)
-            ax.set_xticks(FULL_XTICKS)
-            ax.set_xticklabels(format_relative_ticks(FULL_XTICKS))
+        ticks = MID_XTICKS if narrow else FULL_XTICKS
+        ax.set_xlim(*(MID_XLIM if narrow else FULL_XLIM))
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(format_relative_ticks(ticks))
         ax.tick_params(colors=AXIS_COLOR, labelcolor=AXIS_COLOR)
         if np.isfinite(panel_max_y) and panel_max_y > 0:
             ax.set_ylim(0, panel_max_y * 1.12)
 
-    for ax, function_name, letter in zip(bottom_axes, BOTTOM_FUNCTION_ORDER, bottom_letters):
+    def density_for(function_name: str, sample: pd.Series) -> np.ndarray:
+        fit_row = fit_row_for_sample(fits[function_name], sample)
+        density = np.asarray(eval_density(function_name, x_grid, fit_row), dtype=float)
+        density[~np.isfinite(density)] = np.nan
+        return np.clip(density, 0.0, np.inf)
+
+    # Top row: one sample per skewness class. One colour, three line styles.
+    for index, (ax, sample, letter) in enumerate(zip(axes[0], selected, ["a", "b", "c"])):
+        key = sample["target_name"]
+        color = SKEW_COLORS[key]
+        panel_max_y = 0.0
+        edges, observed = observed_density_steps(sample, size_lookup)
+        if len(edges) > 1:
+            ax.stairs(observed, edges, baseline=0, fill=True, facecolor=OBS_FACE,
+                      edgecolor=OBS_EDGE, linewidth=0.85, alpha=0.85)
+            panel_max_y = max(panel_max_y, np.nanmax(observed))
+        for function_name in FUNCTION_ORDER:
+            density = density_for(function_name, sample)
+            panel_max_y = max(panel_max_y, np.nanmax(density))
+            ax.plot(x_grid, density, color=color,
+                    linestyle=FUNCTION_STYLES[function_name], linewidth=1.3)
+        panel_label(ax, letter, SKEW_LABELS[key])
+        finish(ax, panel_max_y, narrow=(index == 1))
+
+    # Bottom row: one function per panel. One line style, three colours.
+    for ax, function_name, letter in zip(axes[1], BOTTOM_FUNCTION_ORDER, ["d", "e", "f"]):
         panel_max_y = 0.0
         for sample in selected:
-            fit_row = fit_row_for_sample(fits[function_name], sample)
-            density = eval_density(function_name, x_grid, fit_row)
-            density = np.asarray(density, dtype=float)
-            density[~np.isfinite(density)] = np.nan
-            density = np.clip(density, 0.0, np.inf)
+            density = density_for(function_name, sample)
             panel_max_y = max(panel_max_y, np.nanmax(density))
-            ax.plot(
-                x_grid,
-                density,
-                color=FUNCTION_COLORS[function_name],
-                linestyle=SAMPLE_STYLES[sample["target_name"]],
-                linewidth=1.15,
-            )
+            ax.plot(x_grid, density, color=SKEW_COLORS[sample["target_name"]],
+                    linestyle=FUNCTION_STYLES[function_name], linewidth=1.2)
+        panel_label(ax, letter, FUNCTION_LABELS[function_name])
+        finish(ax, panel_max_y)
 
-        style_axis(ax)
-        ax.text(
-            -0.02,
-            1.035,
-            letter,
-            transform=ax.transAxes,
-            ha="left",
-            va="bottom",
-            fontsize=9,
-            fontweight="bold",
-            color="black",
-            clip_on=False,
-        )
-        ax.set_xscale("log", base=2)
-        ax.set_xlim(*FULL_XLIM)
-        ax.set_xticks(FULL_XTICKS)
-        ax.set_xticklabels(format_relative_ticks(FULL_XTICKS))
-        ax.tick_params(colors=AXIS_COLOR, labelcolor=AXIS_COLOR)
-        if np.isfinite(panel_max_y) and panel_max_y > 0:
-            ax.set_ylim(0, panel_max_y * 1.12)
+    fig.text(0.030, 0.58, "Probability density (% per log2 mm)", ha="center",
+             va="center", rotation=90, fontsize=8)
+    fig.text(0.55, 0.155, "Particle size (mm, log2 scale)", ha="center",
+             va="center", fontsize=8)
 
-    fig.text(
-        0.035,
-        0.55,
-        "Probability density (% per log2 mm)",
-        ha="center",
-        va="center",
-        rotation=90,
-        fontsize=8,
-    )
-    fig.text(
-        0.55,
-        0.135,
-        "Particle size (mm, log2 scale)",
-        ha="center",
-        va="center",
-        fontsize=8,
-    )
+    color_handles = [Patch(facecolor=OBS_FACE, edgecolor=OBS_EDGE, label="observed data")]
+    color_handles += [Line2D([0], [0], color=SKEW_COLORS[key], linestyle="-", linewidth=1.6,
+                             label=SKEW_LABELS[key]) for key in SKEW_ORDER]
+    style_handles = [Line2D([0], [0], color="#4A4A4A", linestyle=FUNCTION_STYLES[name],
+                            linewidth=1.4, label=FUNCTION_LABELS[name])
+                     for name in FUNCTION_ORDER]
+    first = fig.legend(handles=color_handles, loc="lower center", ncol=4, frameon=False,
+                       bbox_to_anchor=(0.5, 0.062), handlelength=2.2, columnspacing=1.3,
+                       fontsize=6.8)
+    fig.add_artist(first)
+    fig.legend(handles=style_handles, loc="lower center", ncol=3, frameon=False,
+               bbox_to_anchor=(0.5, 0.005), handlelength=2.6, columnspacing=1.6,
+               fontsize=6.8)
 
-    handles = [
-        Patch(facecolor=OBS_FACE, edgecolor=OBS_EDGE, label="observed data"),
-        Line2D(
-            [0],
-            [0],
-            color=FUNCTION_COLORS["GIG_2p"],
-            linestyle=FUNCTION_STYLES["GIG_2p"],
-            linewidth=1.25,
-            label=FUNCTION_LABELS["GIG_2p"],
-        ),
-        Line2D(
-            [0],
-            [0],
-            color=FUNCTION_COLORS["Lognormal"],
-            linestyle=FUNCTION_STYLES["Lognormal"],
-            linewidth=1.25,
-            label=FUNCTION_LABELS["Lognormal"],
-        ),
-        Line2D(
-            [0],
-            [0],
-            color=FUNCTION_COLORS["Weibull"],
-            linestyle=FUNCTION_STYLES["Weibull"],
-            linewidth=1.25,
-            label=FUNCTION_LABELS["Weibull"],
-        ),
-    ]
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        ncol=4,
-        frameon=False,
-        bbox_to_anchor=(0.5, 0.015),
-        handlelength=2.5,
-        columnspacing=1.35,
-    )
-    fig.subplots_adjust(
-        left=0.09,
-        right=0.985,
-        top=0.965,
-        bottom=0.20,
-        wspace=0.26,
-        hspace=0.38,
-    )
-    fig.savefig(out_prefix.with_suffix(".png"), dpi=600)
+    fig.subplots_adjust(left=0.095, right=0.985, top=0.945, bottom=0.235,
+                        wspace=0.26, hspace=0.42)
+    save_figure(fig, out_prefix, fmt, dpi=600)
     plt.close(fig)
 
 
@@ -360,6 +282,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sizes", type=Path, default=SIZE_PATH)
     parser.add_argument("--out-prefix", type=Path, default=SAMPLE_OUT_PREFIX)
     parser.add_argument("--n-grid", type=int, default=600)
+    add_format_argument(parser)
     return parser.parse_args()
 
 
@@ -372,7 +295,8 @@ def main() -> None:
     selected, thresholds = select_representatives(data)
 
     args.out_prefix.parent.mkdir(parents=True, exist_ok=True)
-    plot_single_samples(selected, fits, size_lookup, args.out_prefix, args.n_grid)
+    plot_single_samples(selected, fits, size_lookup, args.out_prefix,
+                        args.n_grid, args.format)
 
 
 if __name__ == "__main__":

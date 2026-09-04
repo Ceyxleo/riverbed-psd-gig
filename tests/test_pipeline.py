@@ -32,8 +32,8 @@ def test_cdf_is_finite_over_the_grain_size_range(spec):
 
     Monotonicity is a property of the *fitted* parameters, not of arbitrary ones:
     several of these forms are only valid cumulative distributions on part of
-    their parameter space. That is checked separately against the archive in
-    ``test_archived_fits_are_valid_distributions``.
+    their parameter space. That is checked separately in
+    ``test_headline_fits_are_valid_distributions``.
     """
     guess = spec.base_initial_guess or tuple([1.0] * spec.n_params)
     x = np.log2(GRID) if spec.base_x_transform == "log2" else GRID
@@ -64,11 +64,10 @@ def measured_ranges():
                          "d_min": low, "d_max": high}).set_index("sample_ID")
 
 
-# Functions whose archived fits are valid cumulative distributions everywhere in
-# the measured sieve range. Every claim in the paper rests on one of these.
-# The remaining candidates are fitted by unconstrained least squares on the
-# cumulative curve, which does not enforce monotonicity or the 0-100% bounds;
-# scripts/07_cdf_validity.py quantifies that for all 25.
+# Functions whose fits are valid cumulative distributions everywhere in the
+# measured sieve range. Every claim in the paper rests on one of these. Fitting
+# is unconstrained least squares on the cumulative curve, which does not enforce
+# monotonicity or the 0-100% bounds, so not every candidate qualifies.
 WELL_BEHAVED = ["GLH_p05", "GLH_p1", "Tanh", "Lognormal", "GIG_2p", "Weibull",
                 "GLH", "GIG_3p"]
 
@@ -112,13 +111,13 @@ def test_headline_fits_are_valid_distributions(label, measured_ranges):
 @pytest.mark.skipif(not (DATA / "fitted_functions").exists(),
                     reason="run scripts/00_fetch_inputs.py first")
 def test_lognormal_d84_extrapolates_far_beyond_the_coarsest_sieve():
-    """Documents the extrapolation caveat behind the D84 comparison in Fig. 5.
+    """The extrapolation caveat behind the D84 comparison in Fig. 5.
 
     The coarsest sieve grade in the dataset is 256 mm and the coarsest principal
-    grade is 128 mm, yet the archived Lognormal fits imply D84 values far above
-    both for a handful of samples. Those samples dominate Lognormal's D84 RMSRE.
+    grade is 128 mm, yet the Lognormal fits imply D84 values far above both for a
+    handful of samples. Those samples dominate Lognormal's D84 RMSRE.
     """
-    percentiles = pd.read_csv(DATA / "dvalues_archived.csv", dtype={"site_no": str})
+    percentiles = pd.read_csv(DATA / "dvalues.csv", dtype={"site_no": str})
     largest_grade = 256.0
     beyond = percentiles["D84_Lognormal"] > largest_grade
     assert beyond.any(), "expected at least one Lognormal D84 beyond the coarsest sieve"
@@ -167,10 +166,10 @@ def test_log2_density_jacobian_integrates_to_one():
 
 
 def test_fredle_index_uses_four_percentiles():
-    """FI = sqrt(D16 D84) / sqrt(D75/D25) -- not D84 alone (reviewer question Q4)."""
+    """FI = sqrt(D16 D84) / sqrt(D75/D25) -- four percentiles, not D84 alone."""
     sys.path.insert(0, str(ROOT / "scripts"))
     import importlib.util
-    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "03_water_metrics.py")
+    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "02_water_metrics.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
@@ -194,9 +193,9 @@ def test_fredle_index_uses_four_percentiles():
 
 
 def test_channel_reynolds_number_depends_on_grain_size():
-    """Documents reviewer question Q2: Re is not independent of D84."""
+    """Re is not independent of grain size: U scales as D84^(-1/6)."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "03_water_metrics.py")
+    spec = importlib.util.spec_from_file_location("wm", ROOT / "scripts" / "02_water_metrics.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 

@@ -15,6 +15,10 @@ from matplotlib.gridspec import GridSpec
 
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _figsave import add_format_argument, save_figure  # noqa: E402
+
 DEFAULT_METRICS = ROOT / "outputs" / "water" / "sample_water_metrics.csv"
 DEFAULT_OUT = ROOT / "figures" / "Figure_5"
 
@@ -173,7 +177,7 @@ def annotate_cells(ax: plt.Axes, matrix: np.ndarray) -> None:
             )
 
 
-def make_figure(metrics_path: Path, out_prefix: Path) -> None:
+def make_figure(metrics_path: Path, out_prefix: Path, fmt: str = "png") -> None:
     setup_style()
     data = pd.read_csv(metrics_path, dtype={"site_no": str})
     summary = build_summary(data)
@@ -255,25 +259,18 @@ def make_figure(metrics_path: Path, out_prefix: Path) -> None:
 
     fig.subplots_adjust(left=0.12, right=0.87, top=0.80, bottom=0.18, wspace=0.06)
 
-    out_prefix.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(
-        out_prefix.with_suffix(".png"),
-        dpi=600,
-        facecolor="white",
-        bbox_inches="tight",
-        pad_inches=0.035,
-    )
+    save_figure(fig, out_prefix, fmt, dpi=600, facecolor="white",
+                bbox_inches="tight", pad_inches=0.035)
     plt.close(fig)
-
-    print(out_prefix.with_suffix(".png"))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Single heatmap Figure 5 redesign.")
     parser.add_argument("--metrics", type=Path, default=DEFAULT_METRICS)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    add_format_argument(parser)
     args = parser.parse_args()
-    make_figure(args.metrics.expanduser(), args.out.expanduser())
+    make_figure(args.metrics.expanduser(), args.out.expanduser(), args.format)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,10 @@ from matplotlib.patches import Patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _figsave import add_format_argument, save_figure  # noqa: E402
+
 DATA_PATH = ROOT / "outputs" / "tables" / "analysis_frame.csv"
 WBD_PATH = ROOT / "data" / "reference" / "wbd_hu2.gpkg"
 OUT_PREFIX = ROOT / "figures" / "Figure_2"
@@ -34,9 +38,9 @@ REGION_COLORS = {"G": "#E9C7C5", "L": "#EFE4B8", "W": "#C9D4E5"}
 
 SKEW_ORDER = ["SK1", "SK2", "SK3"]
 SKEW_LABELS = {
-    "SK1": "negative-skewed\n-1 to -0.1",
+    "SK1": "coarse-skewed\n-1 to -0.1",
     "SK2": "near-symmetric\n-0.1 to 0.1",
-    "SK3": "positive-skewed\n0.1 to 1",
+    "SK3": "fine-skewed\n0.1 to 1",
 }
 
 D50_ORDER = ["sand_finer", "granule", "pebble", "coarse"]
@@ -619,7 +623,8 @@ def plot_sigma(ax: plt.Axes, data: pd.DataFrame) -> None:
     )
 
 
-def make_figure(data_path: Path, wbd_path: Path | None, out_prefix: Path) -> None:
+def make_figure(data_path: Path, wbd_path: Path | None, out_prefix: Path,
+                fmt: str = "png") -> None:
     setup_style()
     data = load_data(data_path)
     data = data[data["functions"].map(len) > 0].copy()
@@ -669,9 +674,8 @@ def make_figure(data_path: Path, wbd_path: Path | None, out_prefix: Path) -> Non
 
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
     png_path = out_prefix.with_suffix(".png")
-    fig.savefig(png_path, dpi=600, facecolor="white")
+    save_figure(fig, png_path.with_suffix(""), fmt, dpi=600, facecolor="white")
     plt.close(fig)
-    print(png_path)
 
 
 def main() -> None:
@@ -682,12 +686,14 @@ def main() -> None:
     parser.add_argument("--wbd", default=str(WBD_PATH), help="Path to the WBDHU2 GeoPackage (data/reference/wbd_hu2.gpkg)")
     parser.add_argument("--no-wbd", action="store_true", help="Use lon/lat station scatter instead of WBD map")
     parser.add_argument("--out", default=str(OUT_PREFIX), help="Output prefix, without extension")
+    add_format_argument(parser)
     args = parser.parse_args()
 
     make_figure(
         data_path=Path(args.data).expanduser(),
         wbd_path=None if args.no_wbd else Path(args.wbd).expanduser(),
         out_prefix=Path(args.out).expanduser(),
+        fmt=args.format,
     )
 
 

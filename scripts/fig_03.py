@@ -17,8 +17,12 @@ from scipy import stats
 
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _figsave import add_format_argument, save_figure  # noqa: E402
+
 DEFAULT_METRICS = ROOT / "outputs" / "water" / "sample_water_metrics.csv"
-DEFAULT_BIC_ONE = ROOT / "data" / "best_fit_by_sample.csv"
+DEFAULT_BIC_ONE = ROOT / "data" / "usgs_sample_statistics.csv"
 DEFAULT_OUT = ROOT / "figures" / "Figure_3"
 
 FIT_FILES = {
@@ -342,6 +346,7 @@ def make_figure(
     bic_one_path: Path,
     out_prefix: Path,
     best_only: bool = True,
+    fmt: str = "png",
 ) -> None:
     setup_style()
     hydro = load_hydro(metrics_path)
@@ -410,10 +415,9 @@ def make_figure(
     draw_regime_winner_panel(ax_regime, regime_winners)
 
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_prefix.with_suffix(".png"), dpi=600, facecolor="white", bbox_inches="tight", pad_inches=0.04)
+    save_figure(fig, out_prefix, fmt, dpi=600, facecolor="white", bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 
-    print(out_prefix.with_suffix(".png"))
 
 
 def main() -> None:
@@ -426,12 +430,14 @@ def main() -> None:
         action="store_true",
         help="Use all fitted samples for each function instead of samples where the function is selected as best fit.",
     )
+    add_format_argument(parser)
     args = parser.parse_args()
     make_figure(
         args.metrics.expanduser(),
         args.bic_one.expanduser(),
         args.out.expanduser(),
         best_only=not args.all_fits,
+        fmt=args.format,
     )
 
 

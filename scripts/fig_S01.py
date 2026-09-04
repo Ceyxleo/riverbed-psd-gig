@@ -4,10 +4,15 @@
 from __future__ import annotations
 
 import os
+import argparse
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _figsave import add_format_argument, save_figure  # noqa: E402
+
 DATA_PATH = (
     ROOT / "data" / "reference" / "google_scholar_decade_counts.csv"
 )
@@ -58,7 +63,7 @@ def load_decade_counts():
     return df
 
 
-def plot_decade_counts(df) -> Path:
+def plot_decade_counts(df, fmt: str = "png") -> Path:
     os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_DIR))
 
     import matplotlib as mpl
@@ -138,15 +143,18 @@ def plot_decade_counts(df) -> Path:
 
     fig.tight_layout()
     png_path = PLOT_DIR / f"{OUTPUT_STEM}.png"
-    fig.savefig(png_path, dpi=300, bbox_inches="tight")
+    save_figure(fig, png_path.with_suffix(""), fmt, dpi=300, bbox_inches="tight")
     plt.close(fig)
     return png_path
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Supplementary Fig. S1: decadal literature counts.")
+    add_format_argument(parser)
+    args = parser.parse_args()
     df = load_decade_counts()
-    png_path = plot_decade_counts(df)
-    print(f"Wrote {png_path}")
+    plot_decade_counts(df, args.format)
 
 
 if __name__ == "__main__":

@@ -17,8 +17,7 @@ calculations"):
     FI      = sqrt(D16 D84) / sqrt(D75 / D25)    Fredle Index
 
 NOTE: U, and therefore Re, depend on D84 through the Strickler roughness, so
-neither is independent of grain size. Re* contains D84 directly. See
-docs/caveats.md.
+neither is independent of grain size, and Re* contains D84 directly.
 
 Bedload is defined only where tau* exceeds tau*_c; samples below the threshold of
 motion carry no bedload prediction and drop out of the Fig. 5 bedload column.
@@ -155,11 +154,7 @@ def rmsre_table(frame: pd.DataFrame) -> pd.DataFrame:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--dvalues", type=Path, default=ROOT / "data" / "dvalues_archived.csv",
-                        help="Percentile table. Defaults to the archived percentiles, which "
-                             "reproduce the published Fig. 5 values exactly; pass "
-                             "outputs/dvalues/dvalues_recomputed.csv to use the analytic "
-                             "inverse instead (see docs/caveats.md).")
+    parser.add_argument("--dvalues", type=Path, default=ROOT / "data" / "dvalues.csv")
     parser.add_argument("--nhd", type=Path,
                         default=ROOT / "data" / "station_nhdplus_attributes.csv")
     parser.add_argument("--q100", type=Path,

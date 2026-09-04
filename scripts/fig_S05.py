@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Supplementary Fig. S5 -- candidate-function performance on the Lower Rhine.
+"""Supplementary Fig. S5 -- GIG, lognormal and Weibull on the Lower Rhine.
 
-(a) BIC distribution across the 67 Lower Rhine samples for all 25 candidate
-    functions, with the median printed under each violin.
+(a) BIC across the 67 Lower Rhine samples, median printed under each violin.
 (b) the same for RMSE.
-(c) best-fit composition within each Folk-Ward skewness class, where the
-    best-fit set holds every function within 2 BIC units of the sample minimum.
+(c) best-fit composition within each Folk-Ward skewness class, where the best-fit
+    set holds every function within 2 BIC units of the sample minimum.
 
-Run `python scripts/06_rhine_summary.py` first; this reads its outputs.
+Run `python scripts/05_rhine_summary.py` first; this reads its outputs.
 
     python scripts/fig_S05.py
 """
@@ -28,12 +27,13 @@ import pandas as pd
 from matplotlib.gridspec import GridSpec
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _figsave import add_format_argument, save_figure  # noqa: E402
 
-from psd_gig.fit_specs import FUNCTION_SPECS  # noqa: E402
+FUNCTIONS = ["GIG_2p", "Lognormal", "Weibull"]
+FUNCTION_LABELS = {"GIG_2p": "GIG", "Lognormal": "Lognormal", "Weibull": "Weibull"}
+FUNCTION_COLORS = {"GIG_2p": "#C45755", "Lognormal": "#D9BC5E", "Weibull": "#5E769B"}
 
-TWO_PARAMETER_COLOR = "#5E769B"
-THREE_PARAMETER_COLOR = "#C45755"
 SET_COLORS = {
     "GIG_2p": "#C45755",
     "GIG_2p & Lognormal": "#E08A56",
@@ -59,8 +59,8 @@ def setup_style() -> None:
     mpl.rcParams.update({
         "font.family": "sans-serif",
         "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-        "font.size": 6.4, "axes.labelsize": 6.4, "axes.titlesize": 6.8,
-        "xtick.labelsize": 5.8, "ytick.labelsize": 5.8, "legend.fontsize": 5.6,
+        "font.size": 7, "axes.labelsize": 7, "axes.titlesize": 7.4,
+        "xtick.labelsize": 6.5, "ytick.labelsize": 6.5, "legend.fontsize": 6.2,
         "pdf.fonttype": 42, "ps.fonttype": 42, "axes.linewidth": 0.6,
         "xtick.major.width": 0.6, "ytick.major.width": 0.6,
         "xtick.major.size": 2.2, "ytick.major.size": 2.2,
@@ -75,25 +75,30 @@ def style_axis(ax) -> None:
         ax.spines[spine].set_visible(False)
 
 
-def violin_panel(ax, matrix: pd.DataFrame, labels: list[str], n_params: dict[str, int],
-                 metric: str, title: str, label_y: float) -> None:
-    data = [matrix[label].dropna().to_numpy() for label in labels]
-    positions = np.arange(len(labels))
-    parts = ax.violinplot(data, positions=positions, widths=0.82,
+def violin_panel(ax, matrix: pd.DataFrame, metric: str, title: str) -> None:
+    data = [matrix[label].dropna().to_numpy() for label in FUNCTIONS]
+    positions = np.arange(len(FUNCTIONS))
+    parts = ax.violinplot(data, positions=positions, widths=0.7,
                           showextrema=False, showmedians=False)
-    for body, label in zip(parts["bodies"], labels):
-        body.set_facecolor(THREE_PARAMETER_COLOR if n_params[label] == 3
-                           else TWO_PARAMETER_COLOR)
-        body.set_alpha(0.72)
-        body.set_linewidth(0.2)
+    for body, label in zip(parts["bodies"], FUNCTIONS):
+        body.set_facecolor(FUNCTION_COLORS[label])
+        body.set_alpha(0.75)
+        body.set_linewidth(0.3)
         body.set_edgecolor("white")
-    medians = [np.median(values) for values in data]
-    ax.scatter(positions, medians, s=5.5, color="black", zorder=4, linewidths=0)
+
+    low = float(np.nanpercentile(np.concatenate(data), 1.0))
+    high = float(np.nanpercentile(np.concatenate(data), 99.0))
+    span = high - low
+    label_y = low - 0.19 * span
+    ax.set_ylim(low - 0.30 * span, high + 0.06 * span)
+
+    medians = [float(np.median(values)) for values in data]
+    ax.scatter(positions, medians, s=9, color="black", zorder=4, linewidths=0)
     for position, median in zip(positions, medians):
-        ax.text(position, label_y, f"{median:.2f}", ha="center", va="bottom",
-                fontsize=5.0, rotation=90)
+        ax.text(position, label_y, f"{median:.2f}", ha="center", va="center", fontsize=6.4)
+
     ax.set_xticks(positions)
-    ax.set_xticklabels(labels, rotation=90)
+    ax.set_xticklabels([FUNCTION_LABELS[label] for label in FUNCTIONS])
     ax.set_ylabel(metric)
     ax.set_title(title, loc="left")
     style_axis(ax)
@@ -106,51 +111,32 @@ def main() -> int:
     parser.add_argument("--fits", type=Path,
                         default=ROOT / "outputs" / "fit_rhine" / "fitted_functions")
     parser.add_argument("--out", type=Path, default=ROOT / "figures" / "Figure_S5")
-    parser.add_argument("--format", choices=["png", "pdf", "both"], default="both")
+    add_format_argument(parser)
     args = parser.parse_args()
 
     setup_style()
     samples = pd.read_csv(args.rhine / "rhine_sample_table.csv", dtype={"sample_ID": str})
 
     bic, rmse = {}, {}
-    n_params = {}
-    for spec in FUNCTION_SPECS:
-        matches = sorted(args.fits.glob(f"F{spec.number:02d}_*.csv"))
+    numbers = {"GIG_2p": 14, "Lognormal": 10, "Weibull": 15}
+    for label in FUNCTIONS:
+        matches = sorted(args.fits.glob(f"F{numbers[label]:02d}_*.csv"))
         if not matches:
-            continue
+            raise FileNotFoundError(f"No Lower Rhine fit for {label}; run `make rhine` first")
         fit = pd.read_csv(matches[0])
         fit["sample_ID"] = fit["sample_ID"].astype(str)
         fit = fit.drop_duplicates("sample_ID").set_index("sample_ID")
-        bic[spec.label] = fit["BIC"]
-        rmse[spec.label] = fit["RMSE"]
-        n_params[spec.label] = spec.n_params
-    labels = list(bic)
-    bic_matrix = pd.DataFrame(bic)
-    rmse_matrix = pd.DataFrame(rmse)
+        bic[label] = fit["BIC"]
+        rmse[label] = fit["RMSE"]
 
-    figure = plt.figure(figsize=(7.1, 4.6))
-    grid = GridSpec(2, 3, figure=figure, width_ratios=[1.0, 1.0, 0.72],
-                    hspace=0.62, wspace=0.32)
-    ax_bic = figure.add_subplot(grid[0, 0:2])
-    ax_rmse = figure.add_subplot(grid[1, 0:2])
-    ax_bar = figure.add_subplot(grid[:, 2])
+    figure = plt.figure(figsize=(7.1, 3.0))
+    grid = GridSpec(1, 3, figure=figure, width_ratios=[1.0, 1.0, 1.35], wspace=0.38)
+    ax_bic = figure.add_subplot(grid[0, 0])
+    ax_rmse = figure.add_subplot(grid[0, 1])
+    ax_bar = figure.add_subplot(grid[0, 2])
 
-    bic_low = float(np.nanpercentile(bic_matrix.to_numpy(), 0.5))
-    bic_high = float(np.nanpercentile(bic_matrix.to_numpy(), 99.0))
-    violin_panel(ax_bic, bic_matrix, labels, n_params, "BIC",
-                 "a  Function performance, BIC", bic_low - 0.30 * (bic_high - bic_low))
-    ax_bic.set_ylim(bic_low - 0.32 * (bic_high - bic_low), bic_high)
-    ax_bic.set_xticklabels([])
-
-    rmse_high = float(np.nanpercentile(rmse_matrix.to_numpy(), 99.0))
-    violin_panel(ax_rmse, rmse_matrix, labels, n_params, "RMSE",
-                 "b  Function performance, RMSE", -0.30 * rmse_high)
-    ax_rmse.set_ylim(-0.32 * rmse_high, rmse_high)
-
-    handles = [plt.Rectangle((0, 0), 1, 1, color=TWO_PARAMETER_COLOR, alpha=0.72),
-               plt.Rectangle((0, 0), 1, 1, color=THREE_PARAMETER_COLOR, alpha=0.72)]
-    ax_bic.legend(handles, ["two-parameter", "three-parameter"], loc="upper right",
-                  frameon=False, ncol=2, handlelength=1.1)
+    violin_panel(ax_bic, pd.DataFrame(bic), "BIC", "a  Function performance, BIC")
+    violin_panel(ax_rmse, pd.DataFrame(rmse), "RMSE", "b  Function performance, RMSE")
 
     counts = (samples.groupby(["skew_class", "best_function(s)"]).size()
               .unstack(fill_value=0).reindex(CLASS_ORDER).fillna(0))
@@ -160,33 +146,29 @@ def main() -> int:
     positions = np.arange(len(counts))
     for name in order:
         values = counts[name].to_numpy(float)
-        ax_bar.bar(positions, values, bottom=bottom, width=0.74,
+        ax_bar.bar(positions, values, bottom=bottom, width=0.66,
                    color=SET_COLORS[name], edgecolor="white", linewidth=0.7,
                    label=SET_LABELS[name])
         for position, value, base in zip(positions, values, bottom):
             if value >= 3:
                 ax_bar.text(position, base + value / 2, f"{int(value)}", ha="center",
-                            va="center", fontsize=5.4, color="white")
+                            va="center", fontsize=6.2, color="white")
         bottom += values
+
     ax_bar.set_xticks(positions)
     ax_bar.set_xticklabels([name.replace("-", "-\n") for name in counts.index])
     ax_bar.set_ylabel("Number of samples")
     ax_bar.set_xlabel("Folk-Ward skewness class")
-    ax_bar.set_title("c  Best-fit set by\n    skewness class", loc="left")
-    ax_bar.legend(frameon=False, loc="upper right", handlelength=1.0, borderpad=0.2)
+    ax_bar.set_title("c  Best-fit set by skewness class", loc="left")
+    # Headroom so the legend clears the tallest bar.
+    ax_bar.set_ylim(0, bottom.max() * 1.62)
+    ax_bar.legend(frameon=False, loc="upper right", handlelength=1.0, handleheight=0.9,
+                  borderpad=0.15, labelspacing=0.32, fontsize=6.0)
     style_axis(ax_bar)
 
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    written = []
-    if args.format in {"png", "both"}:
-        figure.savefig(args.out.with_suffix(".png"), dpi=600, bbox_inches="tight")
-        written.append(args.out.with_suffix(".png"))
-    if args.format in {"pdf", "both"}:
-        figure.savefig(args.out.with_suffix(".pdf"), bbox_inches="tight")
-        written.append(args.out.with_suffix(".pdf"))
+    figure.subplots_adjust(left=0.075, right=0.985, top=0.88, bottom=0.20)
+    save_figure(figure, args.out, args.format, dpi=600, bbox_inches="tight")
     plt.close(figure)
-    for path in written:
-        print(path)
     return 0
 
 

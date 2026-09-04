@@ -23,8 +23,7 @@ FILES = [
     ("01_samples/usgs_psd_samples_qc.csv", "data/usgs_psd_samples_qc.csv"),
     ("01_samples/usgs_sample_statistics.csv", "data/usgs_sample_statistics.csv"),
     ("01_samples/usgs_station_metadata.csv", "data/usgs_station_metadata.csv"),
-    ("02_fits/best_fit_by_sample.csv", "data/best_fit_by_sample.csv"),
-    ("03_percentiles/dvalues_archived.csv", "data/dvalues_archived.csv"),
+    ("03_percentiles/dvalues.csv", "data/dvalues.csv"),
     ("04_hydraulics/station_nhdplus_attributes.csv", "data/station_nhdplus_attributes.csv"),
     ("04_hydraulics/station_q100_logpearson3.csv", "data/station_q100_logpearson3.csv"),
 ]

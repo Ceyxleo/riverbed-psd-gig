@@ -12,9 +12,8 @@ Two input conventions are supported, selected in the config:
     This is the convention of the Lower Rhine table.
 
 ``size_columns: auto`` selects every column matching ``size_pattern``. The USGS
-fits archived with the paper used *all* available sieve grades, not only the
-twelve principal codes, so ``auto`` is the correct setting there -- see
-``docs/reproduction.md``.
+fits published with the paper used *all* available sieve grades, not only the
+twelve principal codes, so ``auto`` is the correct setting there.
 """
 
 from __future__ import annotations

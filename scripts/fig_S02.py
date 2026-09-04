@@ -15,6 +15,10 @@ from matplotlib.lines import Line2D
 
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _figsave import add_format_argument, save_figure  # noqa: E402
+
 DATA_PATH = ROOT / "outputs" / "tables" / "analysis_frame.csv"
 WBD_PATH = ROOT / "data" / "reference" / "wbd_hu2.gpkg"
 OUT_PREFIX = ROOT / "figures" / "Figure_S2"
@@ -477,7 +481,8 @@ def plot_d50_hist(ax: plt.Axes, samples: pd.DataFrame) -> None:
     )
 
 
-def make_figure(data_path: Path, wbd_path: Path | None, out_prefix: Path) -> None:
+def make_figure(data_path: Path, wbd_path: Path | None, out_prefix: Path,
+                fmt: str = "png") -> None:
     setup_style()
     samples = load_samples(data_path)
     stations = station_summary(samples)
@@ -507,9 +512,8 @@ def make_figure(data_path: Path, wbd_path: Path | None, out_prefix: Path) -> Non
 
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
     png_path = out_prefix.with_suffix(".png")
-    fig.savefig(png_path, dpi=600, facecolor="white", bbox_inches=None)
+    save_figure(fig, png_path.with_suffix(""), fmt, dpi=600, facecolor="white", bbox_inches=None)
     plt.close(fig)
-    print(png_path)
 
 
 def main() -> None:
@@ -520,12 +524,14 @@ def main() -> None:
     parser.add_argument("--wbd", default=str(WBD_PATH), help="Path to the WBDHU2 GeoPackage (data/reference/wbd_hu2.gpkg)")
     parser.add_argument("--no-wbd", action="store_true", help="Use lon/lat station scatter instead of WBD map")
     parser.add_argument("--out", default=str(OUT_PREFIX), help="Output prefix, without extension")
+    add_format_argument(parser)
     args = parser.parse_args()
 
     make_figure(
         data_path=Path(args.data).expanduser(),
         wbd_path=None if args.no_wbd else Path(args.wbd).expanduser(),
         out_prefix=Path(args.out).expanduser(),
+        fmt=args.format,
     )
 
 

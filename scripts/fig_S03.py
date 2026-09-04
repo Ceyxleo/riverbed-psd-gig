@@ -9,6 +9,10 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _figsave import add_format_argument, save_figure  # noqa: E402
+
 DEFAULT_BIC_PATH = ROOT / "outputs" / "tables" / "bic_matrix.tsv"
 DEFAULT_OUT_PREFIX = ROOT / "figures" / "Figure_S3"
 DEFAULT_SUMMARY_PATH = ROOT / "outputs" / "tables" / "figure_S3_summary.csv"
@@ -61,6 +65,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bic-path", type=Path, default=DEFAULT_BIC_PATH)
     parser.add_argument("--out-prefix", type=Path, default=DEFAULT_OUT_PREFIX)
     parser.add_argument("--summary-path", type=Path, default=DEFAULT_SUMMARY_PATH)
+    add_format_argument(parser)
     return parser.parse_args()
 
 
@@ -233,7 +238,7 @@ def plot_panel(ax, item, row: int) -> None:
     )
 
 
-def make_figure(panel_data, out_prefix: Path) -> tuple[Path, Path]:
+def make_figure(panel_data, out_prefix: Path, fmt: str = "png") -> tuple[Path, Path]:
     import matplotlib.pyplot as plt
     from matplotlib.patches import Patch
 
@@ -275,7 +280,7 @@ def make_figure(panel_data, out_prefix: Path) -> tuple[Path, Path]:
     fig.subplots_adjust(left=0.075, right=0.99, bottom=0.085, top=0.93, wspace=0.12, hspace=0.24)
 
     png_path = out_prefix.with_suffix(".png")
-    fig.savefig(png_path, dpi=600)
+    save_figure(fig, png_path.with_suffix(""), fmt, dpi=600)
     plt.close(fig)
     return png_path
 
@@ -283,10 +288,9 @@ def make_figure(panel_data, out_prefix: Path) -> tuple[Path, Path]:
 def main() -> None:
     args = parse_args()
     panel_data, summary = collect_panel_data(args.bic_path)
-    png_path = make_figure(panel_data, args.out_prefix)
+    png_path = make_figure(panel_data, args.out_prefix, args.format)
     args.summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary.to_csv(args.summary_path, index=False)
-    print(f"Wrote {png_path}")
     print(f"Wrote {args.summary_path}")
 
 

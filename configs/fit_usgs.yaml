@@ -1,14 +1,15 @@
 # Configuration that produced the archived USGS fits (fitted_functions/F01..F25).
 #
 # NOTE ON REPRODUCTION
-# The archived fits were produced once, with maxfev = 1,000,000, and are shipped
-# in the data deposit. This repository does NOT re-run them by default: a full
-# run takes several days of wall clock. Use `make verify-fits` to check that this
-# configuration reproduces the archived values on a random subset of samples.
+# The fits were produced once, with maxfev = 1,000,000, and are shipped in the
+# data deposit. This repository does NOT re-run them by default: a full run takes
+# several days of wall clock. Use `make verify` to check that this configuration
+# reproduces the deposited values on a subset of samples.
 #
 # `size_columns: auto` selects every USGS sieve parameter code present in the
 # input (43 grades). This matters: the archived fits used all available grades,
-# not only the twelve principal ones. See docs/reproduction.md.
+# not only the twelve principal ones. Restricting to the twelve changes the fit
+# for 924 of 19,765 samples, by a median of 6.4 BIC units.
 
 project:
   name: psd-gig-usgs
