@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Supplementary Tables S2-S4, and the Fig. 4 source data, from the fitted parameters.
 
-Table S2  median BIC, RMSE and R2 per function, plus the count of upper BIC
-          outliers (Tukey rule: BIC > Q3 + 1.5 IQR).
+Table S2  median BIC, RMSE and R2 per function, plus the count of BIC outliers.
+          `n_BIC_outliers` is the published column: Tukey fliers in BOTH tails,
+          BIC > Q3 + 1.5 IQR or BIC < Q1 - 1.5 IQR. Because low BIC is a good fit,
+          that total mixes unusually bad samples with unusually good ones, so it is
+          also split into `n_BIC_outliers_high` and `_low`.
 Table S3  how often each function is best, at three tolerances: strictly the
           lowest BIC, and within 2 or 6 BIC units of the sample's minimum.
 Table S4  the same counts computed separately within the two- and
@@ -64,9 +67,18 @@ def matrix(frames: dict[str, pd.DataFrame], column: str) -> pd.DataFrame:
     return pd.DataFrame({label: frame[column] for label, frame in frames.items()})
 
 
-def upper_outliers(values: pd.Series) -> int:
+def bic_outliers(values: pd.Series) -> tuple[int, int, int]:
+    """Tukey fliers, as (total, high, low). Total is the published Table S2 column.
+
+    High BIC is a poor fit and low BIC a good one, so the two tails mean opposite
+    things; the total is reported only because the manuscript reports it.
+    """
+    values = values.dropna()
     q1, q3 = values.quantile(0.25), values.quantile(0.75)
-    return int((values > q3 + 1.5 * (q3 - q1)).sum())
+    iqr = q3 - q1
+    high = int((values > q3 + 1.5 * iqr).sum())
+    low = int((values < q1 - 1.5 * iqr).sum())
+    return high + low, high, low
 
 
 def best_counts(bic: pd.DataFrame, labels: list[str]) -> pd.DataFrame:
@@ -95,12 +107,15 @@ def main() -> int:
     print(f"{len(bic):,} samples x {len(labels)} functions")
 
     # ---- Table S2 -------------------------------------------------------
+    outliers = {label: bic_outliers(bic[label]) for label in labels}
     s2 = pd.DataFrame({
         "no": [spec.number for spec in FUNCTION_SPECS],
         "function": labels,
         "n_parameters": [n_params[label] for label in labels],
         "median_BIC": [bic[label].median() for label in labels],
-        "n_BIC_upper_outliers": [upper_outliers(bic[label]) for label in labels],
+        "n_BIC_outliers": [outliers[label][0] for label in labels],
+        "n_BIC_outliers_high": [outliers[label][1] for label in labels],
+        "n_BIC_outliers_low": [outliers[label][2] for label in labels],
         "median_RMSE": [rmse[label].median() for label in labels],
         "median_R2": [r2[label].median() for label in labels],
     })

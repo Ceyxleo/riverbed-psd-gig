@@ -134,6 +134,19 @@ def check_bic_tables() -> None:
         note = ("main text predates the deposited fits; Table S2 is correct"
                 if function in superseded else "")
         record("BIC", f"{function} median BIC", published, medians[function], 0.05, note)
+    # Table S2's outlier column, for the nine functions whose fits are shipped
+    # unchanged. The other sixteen were re-fitted, so their counts are expected to move.
+    published_outliers = {"GLH_p05": 121, "GLH_p1": 137, "Lognormal": 167, "NIG": 212,
+                          "GIG_2p": 235, "Weibull": 266, "GLH": 366, "Logn_PL": 434,
+                          "GIG_3p": 397}
+    if "n_BIC_outliers" in s2.columns:
+        counts = s2.set_index("function")["n_BIC_outliers"]
+        for function, published in published_outliers.items():
+            record("BIC", f"{function} BIC outliers (Table S2)", published,
+                   counts[function], 0,
+                   note="Tukey fliers in BOTH tails; low BIC is a good fit, so the "
+                        "total mixes poor and unusually good samples")
+
     record("BIC", "GIG_2p ranks ahead of Logn_PL", "yes",
            "yes" if medians["GIG_2p"] < medians["Logn_PL"] else "no")
     record("BIC", "  gap GIG_2p vs Logn_PL (BIC units, negligible if < 2)", 2.0,
