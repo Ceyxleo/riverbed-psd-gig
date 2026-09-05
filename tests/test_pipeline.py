@@ -296,3 +296,63 @@ def test_fitting_uses_every_sieve_grade():
     config = load_config(ROOT / "configs" / "fit_usgs.yaml")
     _, size_columns = load_input_data(config)
     assert len(size_columns) == 43
+
+
+# ------------------------------------------------------------- Folk-Ward phi
+
+def _folk_ward():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "rhine_summary", ROOT / "scripts" / "06_rhine_summary.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.folk_ward
+
+
+def test_folk_ward_skewness_sign_and_positive_sorting():
+    """Positive skewness must mean fine-skewed, and sorting must be positive.
+
+    Regression test: the phi percentile subscripts are complementary to the
+    millimetre ones (phi16 = -log2(D84)). Using the same subscript on both scales
+    leaves the mean and kurtosis right but negates the sorting and the skewness,
+    which inverted every Lower Rhine skewness class.
+    """
+    folk_ward = _folk_ward()
+    sizes = np.array([0.0625, 0.25, 1.0, 4.0, 16.0, 64.0])
+    fine = folk_ward(sizes, np.array([12.0, 20.0, 30.0, 55.0, 90.0, 100.0]))
+    coarse = folk_ward(sizes, np.array([0.0, 10.0, 45.0, 70.0, 80.0, 100.0]))
+    assert fine["skew_FW"] > 0.1, "a fine tail must give positive Folk-Ward skewness"
+    assert coarse["skew_FW"] < -0.1, "a coarse tail must give negative Folk-Ward skewness"
+    assert fine["stand_div_FW"] > 0 and coarse["stand_div_FW"] > 0
+
+
+@pytest.mark.skipif(not (DATA / "usgs_sample_statistics.csv").exists(),
+                    reason="run scripts/00_fetch_inputs.py first")
+def test_folk_ward_matches_the_conus_statistics_table():
+    """The Rhine statistics must be computed on the same standard as the CONUS ones."""
+    from psd_gig.config import load_config
+    from psd_gig.fit_data import load_diameter_lookup, load_input_data
+
+    folk_ward = _folk_ward()
+    config = load_config(ROOT / "configs" / "fit_usgs.yaml")
+    data, size_columns = load_input_data(config)
+    lookup = load_diameter_lookup(config, size_columns)
+    published = pd.read_csv(DATA / "usgs_sample_statistics.csv").set_index("sample_ID")
+
+    checked = 0
+    for _, sample in data.head(200).iterrows():
+        values = pd.to_numeric(sample[size_columns], errors="coerce").dropna()
+        key = int(sample["sample_ID"])
+        if len(values) < 5 or key not in published.index:
+            continue
+        sizes = lookup.loc[values.index, "d"].to_numpy(float)
+        order = np.argsort(sizes)
+        stats = folk_ward(sizes[order], values.to_numpy(float)[order])
+        reference = published.loc[key]
+        if not np.isfinite(stats["skew_FW"]) or not np.isfinite(reference["skew_FW"]):
+            continue
+        checked += 1
+        for column in ("skew_FW", "stand_div_FW", "mean_size_FW", "kurtosis_FW"):
+            assert stats[column] == pytest.approx(reference[column], abs=1e-9), \
+                f"{column} disagrees with the published statistics for sample {key}"
+    assert checked >= 50

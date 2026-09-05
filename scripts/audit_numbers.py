@@ -258,11 +258,9 @@ def check_rhine() -> None:
     record("rhine", "Weibull best-fit share (%)", 52,
            best.str.contains("Weibull").mean() * 100, 0.6)
     counts = samples["skew_class"].value_counts()
-    record("rhine", "main text: 48 samples are FINE-skewed", 48,
-           int(counts.get("fine-skewed", 0)), 0,
-           note="the 48 are COARSE-skewed under the paper's own Folk-Ward convention")
-    record("rhine", "  of which coarse-skewed", 48, int(counts.get("coarse-skewed", 0)), 0)
+    record("rhine", "fine-skewed samples", 48, int(counts.get("fine-skewed", 0)), 0)
     record("rhine", "near-symmetric samples", 18, int(counts.get("near-symmetric", 0)), 0)
+    record("rhine", "coarse-skewed samples", 1, int(counts.get("coarse-skewed", 0)), 0)
 
 
 def check_table_s5() -> None:

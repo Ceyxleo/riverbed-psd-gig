@@ -63,8 +63,15 @@ def d_value(sizes: np.ndarray, percents: np.ndarray, target: float) -> float:
 
 
 def folk_ward(sizes: np.ndarray, percents: np.ndarray) -> dict[str, float]:
+    """Folk & Ward (1957) graphic statistics, in phi = -log2(D).
+
+    The phi percentile subscripts are complementary to the millimetre ones, because
+    phi runs the opposite way to D: phi16 is -log2(D84), not -log2(D16). Getting this
+    wrong leaves the graphic mean and kurtosis untouched but negates the sorting and
+    the skewness, so `stand_div_FW` coming out negative is the tell.
+    """
     d = {p: d_value(sizes, percents, p) for p in (5, 16, 25, 50, 75, 84, 95)}
-    phi = {p: -np.log2(value) for p, value in d.items()}
+    phi = {p: -np.log2(d[100 - p]) for p in (5, 16, 25, 50, 75, 84, 95)}
     spread = phi[84] - phi[16]
     tail = phi[95] - phi[5]
     return {
