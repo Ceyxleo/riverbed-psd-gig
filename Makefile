@@ -25,12 +25,9 @@ inputs:
 smoke:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_smoke.yaml
 
-# Grid search. --skip-expensive omits the nine functions whose CDFs are evaluated by
-# numerical integration; fitting those costs about 340 core-hours against 1.2 here.
 fits:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_usgs.yaml \
-		--skip-expensive --jobs $(JOBS) --overwrite
-	cp outputs/fit_usgs/fitted_functions/fits_F*.csv data/fitted_functions/
+	 --jobs $(JOBS) --overwrite
 
 # Single-guess fits, for comparison only. Writes to outputs/fit_usgs/base_fits/ and
 # never touches the grid results.
