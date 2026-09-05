@@ -10,16 +10,40 @@ type: software
 license: BSD-3-Clause
 version: 1.0.0
 authors:
+  - family-names: Gerasimova
+    given-names: Kseniia A.
   - family-names: Li
     given-names: Lingbo
   - family-names: Li
     given-names: Hong-Yi
+  - family-names: Zhu
+    given-names: Zhenduo
+  - family-names: Abeshu
+    given-names: Guta W.
+  - family-names: Deng
+    given-names: Zhiqun
+  - family-names: Papanicolaou
+    given-names: Athanasios N.
+  - family-names: Leung
+    given-names: L. Ruby
 preferred-citation:
   type: article
   title: "A Universal Riverbed Sediment Distribution Function Improves Water Security Assessments"
   authors:
+    - family-names: Gerasimova
+      given-names: Kseniia A.
     - family-names: Li
       given-names: Lingbo
     - family-names: Li
       given-names: Hong-Yi
+    - family-names: Zhu
+      given-names: Zhenduo
+    - family-names: Abeshu
+      given-names: Guta W.
+    - family-names: Deng
+      given-names: Zhiqun
+    - family-names: Papanicolaou
+      given-names: Athanasios N.
+    - family-names: Leung
+      given-names: L. Ruby
   year: 2026
