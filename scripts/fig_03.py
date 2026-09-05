@@ -106,7 +106,7 @@ def load_fit(function_name: str) -> pd.DataFrame:
     return fit.replace([np.inf, -np.inf], np.nan)
 
 
-def parameter_table(hydro: pd.DataFrame, function_name: str, best_only: bool = True) -> pd.DataFrame:
+def parameter_table(hydro: pd.DataFrame, function_name: str, best_only: bool = False) -> pd.DataFrame:
     fit = load_fit(function_name)
     data = hydro.merge(fit, on="sample_ID", how="inner")
     if best_only:
@@ -120,7 +120,7 @@ def parameter_table(hydro: pd.DataFrame, function_name: str, best_only: bool = T
     return data
 
 
-def build_correlations(hydro: pd.DataFrame, best_only: bool = True) -> pd.DataFrame:
+def build_correlations(hydro: pd.DataFrame, best_only: bool = False) -> pd.DataFrame:
     rows = []
     for function_name in FUNCTION_ORDER:
         data = parameter_table(hydro, function_name, best_only=best_only)
@@ -345,7 +345,7 @@ def make_figure(
     metrics_path: Path,
     bic_one_path: Path,
     out_prefix: Path,
-    best_only: bool = True,
+    best_only: bool = False,
     fmt: str = "png",
 ) -> None:
     setup_style()
@@ -426,9 +426,11 @@ def main() -> None:
     parser.add_argument("--bic-one", type=Path, default=DEFAULT_BIC_ONE)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument(
-        "--all-fits",
+        "--best-fit-only",
         action="store_true",
-        help="Use all fitted samples for each function instead of samples where the function is selected as best fit.",
+        help="Panels a and b: restrict each function to the samples where it is in the "
+             "best-fit set. The default uses every sample with a valid hydraulic estimate, "
+             "which is the basis of the correlations quoted in the text.",
     )
     add_format_argument(parser)
     args = parser.parse_args()
@@ -436,7 +438,7 @@ def main() -> None:
         args.metrics.expanduser(),
         args.bic_one.expanduser(),
         args.out.expanduser(),
-        best_only=not args.all_fits,
+        best_only=args.best_fit_only,
         fmt=args.format,
     )
 

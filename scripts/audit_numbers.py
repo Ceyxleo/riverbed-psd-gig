@@ -224,7 +224,8 @@ def check_correlations() -> None:
         columns={"Re_reference": "Re", "Re_shear_reference": "Re_star"})
     frame = frame.replace([np.inf, -np.inf], np.nan).dropna(subset=["Re", "Re_star"])
     frame = frame[(frame["Re"] > 0) & (frame["Re_star"] > 0)]
-    record("fig3", "hydraulically complete samples", 19596, len(frame), 0)
+    record("fig3", "hydraulically complete samples", 19596, len(frame), 0,
+           note="one sample (25839) lost its D84 to the CDF round-trip check, so 19,595")
     fit = pd.read_csv(fit_path, usecols=["sample_ID", "fitted_A", "fitted_B"])
     merged = frame.merge(fit, on="sample_ID", how="inner")
     for column, name, published in (("fitted_A", "eta", 0.85), ("fitted_B", "beta", -0.77)):
