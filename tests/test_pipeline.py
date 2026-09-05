@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from psd_gig import function_library as funcs  # noqa: E402
-from psd_gig.fit_specs import FUNCTION_SPECS, SHIPPED_FROM_ARCHIVE  # noqa: E402
+from psd_gig.fit_specs import FUNCTION_SPECS, EXPENSIVE_FUNCTIONS  # noqa: E402
 
 DATA = ROOT / "data"
 GRID = np.logspace(np.log2(1 / 64), np.log2(256), 200, base=2)
@@ -138,7 +138,7 @@ def test_every_function_is_grid_searched():
     """One selection procedure for all 25, so BIC comparisons are like for like."""
     assert all(len(spec.grid) > 1 for spec in FUNCTION_SPECS)
     counts = {spec.label: len(spec.grid) for spec in FUNCTION_SPECS}
-    # Three functions keep the narrower grid their shipped fits were produced with.
+    # Three functions carry a narrower grid than their parameter-count default.
     assert counts["GLH_p05"] == counts["GLH_p1"] == 20
     assert counts["GIG_2p"] == 25
     assert all(counts[s.label] == 50 for s in FUNCTION_SPECS
@@ -146,8 +146,8 @@ def test_every_function_is_grid_searched():
     assert all(counts[s.label] == 8 for s in FUNCTION_SPECS if s.n_params == 3)
 
 
-def test_shipped_functions_are_the_documented_nine():
-    assert set(SHIPPED_FROM_ARCHIVE) == {5, 6, 10, 12, 14, 15, 16, 18, 25}
+def test_expensive_functions_are_the_documented_nine():
+    assert set(EXPENSIVE_FUNCTIONS) == {5, 6, 10, 12, 14, 15, 16, 18, 25}
 
 
 @pytest.mark.skipif(not (DATA / "usgs_psd_samples_qc.csv").exists(),
@@ -156,7 +156,7 @@ def test_grid_search_uses_each_function_s_own_x_transform():
     """The three GLH functions are fitted against log2(D); the rest against D.
 
     Regression test: the grid search once hard-coded linear x, which silently
-    disagreed with the shipped GLH fits.
+    disagreed with the deposited GLH fits.
     """
     from psd_gig.config import load_config
     from psd_gig.fit_data import load_diameter_lookup, load_input_data
@@ -172,11 +172,11 @@ def test_grid_search_uses_each_function_s_own_x_transform():
     refit, _ = grid_search_dataframe(
         spec, subset, lookup, size_columns, maxfev=20000, progress=False,
         grid_all_path=None, write_grid_search_all=False, grid_chunk_samples=10**9)
-    shipped = pd.read_csv(DATA / "fitted_functions" / spec.output_name).set_index("sample_ID")
+    deposited = pd.read_csv(DATA / "fitted_functions" / spec.output_name).set_index("sample_ID")
     refit = refit.set_index(refit["sample_ID"].astype(int))
-    common = refit.index.intersection(shipped.index)
+    common = refit.index.intersection(deposited.index)
     assert len(common) >= 3
-    assert np.allclose(refit.loc[common, "BIC"], shipped.loc[common, "BIC"], atol=1e-6)
+    assert np.allclose(refit.loc[common, "BIC"], deposited.loc[common, "BIC"], atol=1e-6)
 
 
 # ------------------------------------------------------------------- metrics

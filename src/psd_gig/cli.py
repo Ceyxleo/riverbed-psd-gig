@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from .fit_specs import FUNCTION_SPECS, SHIPPED_FROM_ARCHIVE, select_function_specs
+from .fit_specs import FUNCTION_SPECS, EXPENSIVE_FUNCTIONS, select_function_specs
 from .fit_workflow import run_fit_workflow
 
 
@@ -28,9 +28,9 @@ def build_parser() -> argparse.ArgumentParser:
              "base: one guess per sample, written to a separate base_fits/ folder.",
     )
     fit.add_argument(
-        "--skip-shipped", action="store_true",
-        help="Omit the nine functions whose CONUS fits are shipped from the original "
-             "maxfev = 1e6 runs (F05, F06, F10, F12, F14, F15, F16, F18, F25).",
+        "--skip-expensive", action="store_true",
+        help="Omit the nine functions that are expensive to fit because their CDFs are "
+             "evaluated by numerical integration (F05, F06, F10, F12, F14, F15, F16, F18, F25).",
     )
     fit.add_argument(
         "--jobs", type=int, default=1,
@@ -55,9 +55,9 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.command == "fit-functions":
         selectors = args.functions
-        if args.skip_shipped:
+        if args.skip_expensive:
             chosen = select_function_specs(selectors)
-            selectors = [str(s.number) for s in chosen if s.number not in SHIPPED_FROM_ARCHIVE]
+            selectors = [str(s.number) for s in chosen if s.number not in EXPENSIVE_FUNCTIONS]
         outputs = run_fit_workflow(
             args.config,
             function_selectors=selectors,

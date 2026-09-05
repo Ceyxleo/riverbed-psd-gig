@@ -24,7 +24,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from psd_gig.fit_specs import FUNCTION_SPECS, SHIPPED_FROM_ARCHIVE  # noqa: E402
+from psd_gig.fit_specs import FUNCTION_SPECS  # noqa: E402
 
 DEFAULT_SOURCE = ROOT.parent.parent / "Lingbo"
 DEFAULT_DEPOSIT = ROOT.parent / "psd-gig-data-v1.0.0"
@@ -50,30 +50,6 @@ STAT_COLS = [
     "best_function(s)", "num_functions",
 ]
 PRINCIPAL_CODES = [f"p{code}" for code in range(80164, 80176)]
-
-# Supplementary Table S1: full name and the literature the form is drawn from.
-FUNCTION_NAMES = {
-    1: ("Algebraic", "math/stats"), 2: ("Error Power", "newly introduced"),
-    3: ("Exponential Power", "pedology"), 4: ("Gamma", "math/stats"),
-    5: ("Generalized Log-Hyperbolic, special case p = -1/2", "sediment"),
-    6: ("Generalized Log-Hyperbolic, special case p = 1", "sediment"),
-    7: ("Hyperbolic Tangent", "sediment"), 8: ("Logarithm exponential", "pedology"),
-    9: ("Linear logarithm", "pedology"), 10: ("Lognormal", "sediment"),
-    11: ("Log-Laplace", "math/stats"), 12: ("Normal Inverse Gaussian", "sediment"),
-    13: ("Power Law", "pedology"),
-    14: ("Two-parameter Generalized Inverse Gaussian", "math/stats; hydrology"),
-    15: ("Two-parameter Weibull", "sediment"),
-    16: ("Generalized Log-Hyperbolic", "sediment"),
-    17: ("Lognormal and two-parameter Weibull combination", "newly introduced"),
-    18: ("Lognormal and Power Law combination", "newly introduced"),
-    19: ("Lognormal and Hyperbolic Tangent combination", "newly introduced"),
-    20: ("Log-skew-Laplace", "sediment"),
-    21: ("Power Law and Hyperbolic Tangent combination", "newly introduced"),
-    22: ("Power Law Exponential, first alternative", "pedology"),
-    23: ("Power Law Exponential, second alternative", "pedology"),
-    24: ("Power Law and two-parameter Weibull combination", "newly introduced"),
-    25: ("Three-parameter Generalized Inverse Gaussian", "math/stats; hydrology"),
-}
 
 RHINE_NOTICE = """\
 # Lower Rhine: the samples themselves are not redistributed here
@@ -179,7 +155,7 @@ def phase_inputs(source: Path, deposit: Path) -> None:
 
 
 def phase_fits(deposit: Path) -> None:
-    """The final grid-searched parameters for both datasets, plus the function catalog."""
+    """The final grid-searched parameters for both datasets."""
     print("fits:")
     sources = {
         "conus": ROOT / "data" / "fitted_functions",
@@ -202,23 +178,13 @@ def phase_fits(deposit: Path) -> None:
             written += 1
         print(f"  {FITS_DIR}/{dataset}/  {written} files")
 
-    catalog = []
-    for spec in FUNCTION_SPECS:
-        full_name, source_field = FUNCTION_NAMES[spec.number]
-        catalog.append({
-            "number": spec.number, "abbreviation": spec.label, "full_name": full_name,
-            "source_field": source_field, "n_parameters": spec.n_params,
-            "n_initial_guesses": len(spec.grid),
-            "implementation": f"psd_gig.function_library.{spec.func.__name__}",
-            "conus_maxfev": 1000000 if spec.number in SHIPPED_FROM_ARCHIVE else 20000,
-            "rhine_maxfev": 20000,
-            "file": spec.output_name,
-        })
-    pd.DataFrame(catalog).to_csv(deposit / FITS_DIR / "function_catalog.csv", index=False)
-    print(f"  {FITS_DIR}/function_catalog.csv    {len(catalog)} functions")
 
 
 def write_manifest(deposit: Path) -> None:
+    # Finder recreates these whenever the folder is opened; they must not be uploaded.
+    for junk in deposit.rglob(".DS_Store"):
+        junk.unlink()
+
     rows = []
     for path in sorted(deposit.rglob("*")):
         if not path.is_file() or path.name in {"manifest.csv", ".DS_Store"}:

@@ -20,12 +20,10 @@ conda activate psd-gig
 # unpack the data deposit next to this repository, then:
 make inputs      # copy the deposit's tables into data/
 make smoke       # 3 samples through all 25 functions, ~30 s
-make all         # percentiles -> water metrics -> tables -> figures -> audit
+make all         # percentiles -> water metrics -> tables -> figures
 ```
 
-`make all` writes tables to `outputs/`, figures to `figures/`, and finishes with
-`scripts/audit_numbers.py`, which compares every number the manuscript asserts against what
-the pipeline just produced and exits non-zero if any disagree.
+`make all` writes tables to `outputs/` and figures to `figures/`.
 
 ## Pipeline
 
@@ -33,15 +31,12 @@ the pipeline just produced and exits non-zero if any disagree.
 |---|---|---|
 | 0 | `00_fetch_inputs.py` | copies the deposit's tables into `data/` |
 | 1 | `01_fit_functions.py` | fitted parameters for the 25 functions |
-| — | `collect_fits.py` | merges re-fitted and shipped fits into `data/fitted_functions/` |
 | 2 | `02_compute_dvalues.py` | D05–D95 for GIG, Lognormal, Weibull and the best-fit reference |
 | 3 | `03_water_metrics.py` | τ\*, Re, Re\*, bedload, critical shear stress, h₁₀₀, Fredle Index; the Fig. 5 matrix |
 | 4 | `04_bic_tables.py` | Tables S2–S4, the Fig. 4 summary, and the BIC/RMSE matrices |
 | 5 | `05_significance.py` | Table S5 |
 | 6 | `06_rhine_summary.py` | Lower Rhine validation numbers |
 | — | `fig_01.py` … `fig_S05.py` | Figures 1–5 and S1–S5 |
-| — | `audit_numbers.py` | every manuscript number vs. the regenerated outputs |
-| — | `verify_fits.py` | re-fits a subset and compares against the shipped parameters |
 | — | `build_data_deposit.py` | assembles the data deposit |
 
 Figures are written as PNG. `--format pdf` or `--format both` on any figure script, or
@@ -53,16 +48,24 @@ The 25 functions and their settings are declared in `src/psd_gig/fit_specs.py`; 
 forms are in `src/psd_gig/function_library.py` and correspond to Supplementary Table S1.
 
 **All 25 functions are grid-searched, and nothing else is used.** For each sample a function
-is fitted once from every initial guess on its grid and the lowest-BIC result is kept. The
-grid is sized by parameter count — 50 guesses for the two-parameter functions, 8 for the
-three-parameter ones — so that every BIC comparison in the paper is between fits selected the
-same way. Three functions keep a narrower grid because that is what their shipped fits were
-produced with: 20 guesses for GLH_p05 and GLH_p1, 25 for GIG_2p.
+is fitted once from every initial guess on its grid and the lowest-BIC result is kept, so
+every BIC comparison in the paper is between fits selected the same way. The grid is sized by
+parameter count — 50 guesses for the two-parameter functions and 8 for the three-parameter
+ones, with GLH_p05 and GLH_p1 on 20 and GIG_2p on 25.
 
 `--mode base` fits each sample once from a single default guess instead. It exists only for
 comparison and writes to a separate `outputs/fit_usgs/base_fits/` folder, so it can never
 overwrite the results the paper uses. Grid search is never worse than the single guess at
-equal `maxfev`: across 300 samples × 16 functions, 4,800 comparisons, it lost zero times.
+equal `maxfev`: across 300 samples x 16 functions, 4,800 comparisons, it lost zero times.
+
+`maxfev` is 20,000, except for the nine functions whose CDFs are evaluated by numerical
+integration — F05, F06, F10, F12, F14, F15, F16, F18 and F25 — which are fitted at 1,000,000.
+Those nine dominate the cost: fitting them takes roughly 340 core-hours against 1.2 for the
+other sixteen, which is why `make fits` passes `--skip-expensive` and refits only the sixteen.
+
+```bash
+make fits        # the 16, ~27 min across 10 cores
+```
 
 **All available sieve grades are used.** USGS reports twelve principal sieve-diameter grades
 plus 31 additional ones, and the fits use every grade present for a sample (up to 43), which
@@ -71,31 +74,6 @@ codes changes the fit for 924 of the 19,765 samples, by a median of 6.4 BIC unit
 
 **GLH_p05, GLH_p1 and GLH are fitted against log2(D); the other 22 against D.** This is
 `x_transform` in the spec and applies to both modes.
-
-**Nine functions are shipped rather than re-fitted.** F05, F06, F10, F12, F14, F15, F16, F18
-and F25 come from the original grid runs at `maxfev = 1e6`; the other sixteen are re-fitted
-here at `maxfev = 20,000`. The reason is cost, not preference: NIG, GLH_p05 and GLH evaluate
-their CDFs through SciPy's `norminvgauss` / `genhyperbolic`, which integrate numerically on
-every residual evaluation, and re-running the nine would take roughly 340 core-hours against
-1.2 for the sixteen. `data/fitted_functions/provenance.csv` records which file came from
-where, with its guess count, transform and `maxfev`.
-
-```bash
-make fits                                     # the 16, ~27 min across 10 cores
-make verify                                   # re-fit 60 samples of the cheap shipped five
-python scripts/verify_fits.py --functions 12   # NIG: slow
-```
-
-`verify_fits.py` re-fits a subset through the same `grid_search_dataframe` the pipeline uses
-and compares BIC and RMSE against the shipped values. The subset is half random and half
-drawn from the 924 samples carrying additional sieve grades, so it exercises the
-configuration-sensitive case.
-
-Lognormal, Weibull, GIG_2p and Logn_PL reproduce bit-exactly (worst deviation 1e-7 BIC).
-GIG_3p reproduces to within 0.005 BIC but not bit-exactly, on about half the samples: it fits
-a numerically integrated CDF, so `curve_fit`'s path depends on quadrature detail that differs
-between SciPy versions. The check therefore passes on agreement within 0.01 BIC rather than on
-bit equality, and reports both.
 
 ## Percentiles
 

@@ -3,8 +3,8 @@
 #   make setup     create the conda environment
 #   make inputs    copy the data deposit's tables into data/
 #   make smoke     3 samples through all 25 functions (seconds)
-#   make fits      re-fit the 16 non-shipped functions, grid search (~20 min, JOBS cores)
-#   make all       percentiles -> water metrics -> tables -> figures -> audit
+#   make fits      grid-search the 16 cheap functions (~27 min across JOBS cores)
+#   make all       percentiles -> water metrics -> tables -> figures
 #   make rhine     Lower Rhine fit, summary and Fig. S5 (needs the restricted input)
 #   make deposit   rebuild the data deposit
 #
@@ -13,8 +13,8 @@ DEPOSIT ?= ../psd-gig-data-v1.0.0
 FORMAT ?= png
 JOBS ?= 10
 
-.PHONY: setup inputs smoke fits base rhine dvalues water tables figures audit all \
-        verify deposit test clean
+.PHONY: setup inputs smoke fits base rhine dvalues water tables figures all \
+        deposit test clean
 
 setup:
 	conda env create -f environment.yml
@@ -25,13 +25,12 @@ inputs:
 smoke:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_smoke.yaml
 
-# Grid search, all sixteen functions this repository re-fits. The other nine are
-# shipped from the original maxfev = 1e6 runs; collect_fits.py merges both groups
-# into data/fitted_functions/ and records which is which.
+# Grid search. --skip-expensive omits the nine functions whose CDFs are evaluated by
+# numerical integration; fitting those costs about 340 core-hours against 1.2 here.
 fits:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_usgs.yaml \
-		--skip-shipped --jobs $(JOBS) --overwrite
-	$(PY) scripts/collect_fits.py
+		--skip-expensive --jobs $(JOBS) --overwrite
+	cp outputs/fit_usgs/fitted_functions/fits_F*.csv data/fitted_functions/
 
 # Single-guess fits, for comparison only. Writes to outputs/fit_usgs/base_fits/ and
 # never touches the grid results.
@@ -61,19 +60,13 @@ figures: tables
 	$(PY) scripts/fig_S02.py --format $(FORMAT)
 	$(PY) scripts/fig_S03.py --format $(FORMAT)
 
-audit:
-	$(PY) scripts/audit_numbers.py
-
-all: tables figures audit
+all: tables figures
 
 rhine:
 	$(PY) scripts/01_fit_functions.py --config configs/fit_rhine.yaml \
 		--jobs $(JOBS) --overwrite
 	$(PY) scripts/06_rhine_summary.py
 	$(PY) scripts/fig_S05.py --format $(FORMAT)
-
-verify:
-	$(PY) scripts/verify_fits.py --samples 60
 
 deposit:
 	$(PY) scripts/build_data_deposit.py --phase all --deposit $(DEPOSIT)

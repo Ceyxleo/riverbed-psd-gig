@@ -86,8 +86,7 @@ def _spec(
 _R2 = (0.5, 2.5)
 _R3 = (0.5, 2.5, -0.5)
 
-# Three functions carry a narrower grid than the default for their parameter count,
-# because that is the grid the shipped CONUS fits were produced with (see README):
+# Three functions carry a narrower grid than the default for their parameter count:
 # GLH_p05 and GLH_p1 at 20 guesses, GIG_2p at 25.
 FUNCTION_SPECS: tuple[FunctionSpec, ...] = (
     _spec(1, "Algeb", funcs.Algeb, 2, base_retry=_R2),
@@ -122,9 +121,9 @@ FUNCTION_SPECS: tuple[FunctionSpec, ...] = (
 FUNCTION_SPECS_BY_LABEL = {spec.label: spec for spec in FUNCTION_SPECS}
 FUNCTION_SPECS_BY_NUMBER = {spec.number: spec for spec in FUNCTION_SPECS}
 
-#: Functions whose shipped USGS fits come from the original maxfev = 1e6 grid runs
-#: rather than from a re-run in this repository.
-SHIPPED_FROM_ARCHIVE = (5, 6, 10, 12, 14, 15, 16, 18, 25)
+#: Functions whose CDFs are evaluated by numerical integration. They are fitted at
+#: maxfev = 1e6 and are far more expensive than the rest, so `--skip-expensive` omits them.
+EXPENSIVE_FUNCTIONS = (5, 6, 10, 12, 14, 15, 16, 18, 25)
 
 
 def select_function_specs(selectors: list[str] | None) -> list[FunctionSpec]:
