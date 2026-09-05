@@ -88,20 +88,11 @@ def render(table: pd.DataFrame, path: Path) -> None:
     rb = table[[f"rank_biserial_vs_{o}" for o in OTHERS]].to_numpy()
     lines += [
         "",
-        "For each water-security variable, the squared relative error of a fitted "
-        "distribution against the reference value, SRE_f = ((X_ref - X_f) / X_ref)^2, was "
-        "compared pairwise between GIG and each of Lognormal and Weibull. W is the sum of "
-        "the ranks of the differences SRE_other - SRE_GIG that are positive, under the "
-        "one-sided alternative that GIG has the smaller error; it is computed over the "
-        "decided pairs, that is the n samples less the tied pairs. Ties are structural "
-        "rather than coincidental: where GIG and the comparison function are both in a "
-        "sample's best-fit set, the reference is their mean and the two lie the same "
-        "distance from it. \"GIG lower\" is the percentage of decided pairs in which GIG's "
-        "error is the smaller, and r_rb is the matched-pairs rank-biserial correlation, "
-        "(W+ - W-) / (W+ + W-), which weights those wins by their size. With between "
-        f"{table['n_samples'].min():,} and {table['n_samples'].max():,} pairs every p-value "
-        "falls far below any conventional threshold, so the win rate and r_rb are the "
-        "quantities that distinguish the comparisons. Error magnitudes are given in Fig. 5.",
+        "SRE = ((X_ref - X_f) / X_ref)^2. W is the Wilcoxon signed-rank statistic for the "
+        "paired differences SRE_other - SRE_GIG, one-sided for GIG having the smaller error, "
+        "computed over decided pairs (n less ties); ties arise where both functions fall in a "
+        "sample's best-fit set. \"GIG lower\" is the win rate over decided pairs and r_rb the "
+        "matched-pairs rank-biserial correlation. Error magnitudes are in Fig. 5.",
         "",
         f"Summary for the main text: GIG has the lower error in {low.min():.0f}-{low.max():.0f}% "
         f"of decided pairs, with rank-biserial correlations of {rb.min():.2f}-{rb.max():.2f}.",
