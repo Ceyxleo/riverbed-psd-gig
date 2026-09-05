@@ -34,7 +34,7 @@ make all         # percentiles -> water metrics -> tables -> figures
 | 2 | `02_compute_dvalues.py` | D05–D95 for GIG, Lognormal, Weibull and the best-fit reference |
 | 3 | `03_water_metrics.py` | τ\*, Re, Re\*, bedload, critical shear stress, h₁₀₀, Fredle Index; the Fig. 5 matrix |
 | 4 | `04_bic_tables.py` | Tables S2–S4, the Fig. 4 summary, and the BIC/RMSE matrices |
-| 5 | `05_significance.py` | Table S5 |
+| 5 | `05_significance.py` | Table S5: paired Wilcoxon tests of GIG's error reduction |
 | 6 | `06_rhine_summary.py` | Lower Rhine validation numbers |
 | — | `fig_01.py` … `fig_S05.py` | Figures 1–5 and S1–S5 |
 | — | `build_data_deposit.py` | assembles the data deposit |
@@ -87,6 +87,26 @@ target percentile to within 0.01 percentage points. One sample (25839) fails thi
 GIG parameters are extreme enough — β ≈ 2 × 10⁻⁴ — that `geninvgauss.cdf` returns values above
 100%, so no inverse of it can be trusted. Its D75 and D84 are therefore missing, and it drops
 out of the Fig. 5 rows, giving n = 19,762 rather than 19,763.
+
+## Comparing the functions
+
+Fig. 5 and Table S5 answer two different questions and report different quantities.
+
+Fig. 5 gives the magnitude of the error, as RMSRE per variable and function. Table S5 gives
+whether GIG's advantage is systematic, as a paired Wilcoxon signed-rank test on
+`SRE_other - SRE_GIG`, where `SRE = ((X_ref - X_f)/X_ref)^2`. It deliberately reports no error
+magnitudes of its own: the mean of SRE is identically `(RMSRE in %)^2 / 100`, so repeating it
+only invited the ambiguity the submitted table's "SRE, %" heading created.
+
+Ties in that test are exact and structural, not coincidental. Where GIG and the comparison
+function are both in a sample's best-fit set, the reference is their mean and the two lie the
+same distance from it. `zero_method="wilcox"` discards those pairs before ranking, so W and
+the win rate are both taken over the decided pairs — up to 3,965 of 14,567 for bedload against
+Lognormal — which is why the table carries a tie count.
+
+With this many pairs every p-value is far below any threshold and separates nothing. The win
+rate and the matched-pairs rank-biserial correlation are what distinguish the comparisons: the
+first counts how often GIG wins, the second weights those wins by size.
 
 ## Lower Rhine
 
