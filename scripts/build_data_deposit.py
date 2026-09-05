@@ -60,9 +60,10 @@ The independent validation samples come from:
 > Lower Rhine River and its branches in SOBEK RE*, version 2. 4TU.ResearchData (2025).
 > https://doi.org/10.4121/eb78267a-137b-4f61-bb7e-6549915a24c7
 
-That dataset is published under **CC BY-NC-ND 4.0**, which permits neither
-redistribution nor derivative works, so we cannot include the samples in this deposit.
-The fitted parameters we report from them are in `../03_fitted_functions/rhine/`.
+That dataset is published under **CC BY-NC-ND 4.0**, which permits neither redistribution
+nor derivative works, so neither the samples nor the per-sample fitted parameters derived
+from them are included in this deposit. Regenerating the parameters takes about an hour of
+one core once the source data are in place; the aggregate Rhine results are in the paper.
 
 To reproduce the Lower Rhine results (Supplementary Fig. S5 and the Rhine paragraph of
 the main text):
@@ -78,9 +79,9 @@ the main text):
 3. Save it in the code repository as `data/rhine/rhine_data_to_fit.csv`.
 4. Run `make rhine`.
 
-Panels a and b of Fig. S5 can be redrawn from the deposited parameters alone. Panel c
-also needs the measured curves, because the Folk-Ward skewness class is computed from
-them, so it requires step 1.
+All three panels of Fig. S5 require step 1: panels a and b need the fitted parameters,
+which `make rhine` produces, and panel c additionally needs the measured curves, because
+the Folk-Ward skewness class is computed from them.
 """
 
 
@@ -157,10 +158,10 @@ def phase_inputs(source: Path, deposit: Path) -> None:
 def phase_fits(deposit: Path) -> None:
     """The final grid-searched parameters for both datasets."""
     print("fits:")
-    sources = {
-        "conus": ROOT / "data" / "fitted_functions",
-        "rhine": ROOT / "outputs" / "fit_rhine" / "fitted_functions",
-    }
+    # CONUS only. The Lower Rhine parameters are derived from a CC BY-NC-ND dataset
+    # and are not redistributed; `make rhine` regenerates them in about an hour from
+    # the source data. See 04_rhine/README.md.
+    sources = {"conus": ROOT / "data" / "fitted_functions"}
     for dataset, source_dir in sources.items():
         target = deposit / FITS_DIR / dataset
         target.mkdir(parents=True, exist_ok=True)

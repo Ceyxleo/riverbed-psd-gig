@@ -6,9 +6,10 @@ The independent validation samples used in the paper come from:
 > *Schematized model of the Lower Rhine River and its branches in SOBEK RE*, version 2.
 > 4TU.ResearchData (2025). https://doi.org/10.4121/eb78267a-137b-4f61-bb7e-6549915a24c7
 
-That dataset is licensed **CC BY-NC-ND 4.0** — no derivatives, non-commercial — so the
-samples themselves cannot be redistributed here or in the data deposit. The fitted
-parameters we report from them are in the deposit under `03_fitted_functions/rhine/`.
+That dataset is licensed **CC BY-NC-ND 4.0** — no derivatives, non-commercial — so neither
+the samples nor the per-sample fitted parameters derived from them are redistributed here or
+in the data deposit. Once you have the source data, `make rhine` regenerates the parameters
+in about an hour on one core.
 
 ## Building the input yourself
 
@@ -37,9 +38,9 @@ parameters we report from them are in the deposit under `03_fitted_functions/rhi
    the same treatment as the CONUS samples), writes the summary tables to
    `outputs/rhine/`, and draws Supplementary Fig. S5.
 
-   Panels a and b of Fig. S5 can be redrawn from the deposited parameters alone. Panel c
-   needs this input, because the Folk-Ward skewness class is computed from the measured
-   curves.
+   All three panels of Fig. S5 need this input: `make rhine` produces the fits behind
+   panels a and b, and panel c additionally uses the measured curves, from which the
+   Folk-Ward skewness class is computed.
 
 `configs/fit_rhine.yaml` reads the grain size from the column name, so any column named
 `"<number> mm"` is picked up automatically and the exact set of sieve sizes does not have to
