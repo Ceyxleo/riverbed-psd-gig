@@ -1,7 +1,7 @@
 # riverbed-psd-gig
 
 Code for **"A Universal Riverbed Sediment Distribution Function Improves Water Security
-Assessments"** (Gerasimova et al.).
+Assessments"** 
 
 It fits 25 candidate particle-size distribution functions to riverbed sediment samples,
 selects among them by BIC, and propagates the resulting grain-size percentiles into the
@@ -46,34 +46,22 @@ Figures are written as PNG. `--format pdf` or `--format both` on any figure scri
 The 25 functions and their settings are declared in `src/psd_gig/fit_specs.py`; the closed
 forms are in `src/psd_gig/function_library.py` and correspond to Supplementary Table S1.
 
-**All 25 functions are grid-searched, and nothing else is used.** For each sample a function
-is fitted once from every initial guess on its grid and the lowest-BIC result is kept, so
-every BIC comparison in the paper is between fits selected the same way. The grid is sized by
-parameter count — 50 guesses for the two-parameter functions and 8 for the three-parameter
-ones, with GLH_p05 and GLH_p1 on 20 and GIG_2p on 25.
+**All 25 functions are grid-searched.** For each sample a function is fitted once from every 
+initial guess on its grid and the lowest-BIC result is kept, so every BIC comparison in the 
+paper is between fits selected the same way. The grid is sized by parameter count — 50 guesses 
+for the two-parameter functions and 8 for the three-parameter ones.
 
 `--mode base` fits each sample once from a single default guess instead. It exists only for
 comparison and writes to a separate `outputs/fit_usgs/base_fits/` folder, so it can never
 overwrite the results the paper uses. Grid search is never worse than the single guess at
 equal `maxfev`: across 300 samples x 16 functions, 4,800 comparisons, it lost zero times.
 
-`maxfev` is 20,000, except for the nine functions whose CDFs are evaluated by numerical
-integration — F05, F06, F10, F12, F14, F15, F16, F18 and F25 — which are fitted at 1,000,000.
-Those nine dominate the cost: fitting them takes roughly 340 core-hours against 1.2 for the
-other sixteen, which is why `make fits` passes `--skip-expensive` and refits only the sixteen.
+`maxfev` is 20,000. Nine functions, F05, F06, F10, F12, F14, F15, F16, F18 and F25, dominate 
+the cost: fitting them takes roughly 340 core-hours against 1.2 for the other functions.
 
 ```bash
-make fits        # the 16, ~27 min across 10 cores
+make fits  
 ```
-
-**All available sieve grades are used.** USGS reports twelve principal sieve-diameter grades
-plus 31 additional ones, and the fits use every grade present for a sample (up to 43), which
-is why `configs/fit_usgs.yaml` sets `size_columns: auto`. Restricting to the twelve principal
-codes changes the fit for 924 of the 19,765 samples, by a median of 6.4 BIC units.
-
-**GLH_p05, GLH_p1 and GLH are fitted against log2(D); the other 22 against D.** This is
-`x_transform` in the spec and applies to both modes.
-
 ## Percentiles
 
 `02_compute_dvalues.py` solves `F(D) = q` for each fitted distribution, analytically wherever
@@ -125,19 +113,6 @@ outputs/     everything generated (gitignored)
 figures/     final PNG
 tests/       pytest -- run `make test`
 ```
-
-## Reading the numbers
-
-Three points affect interpretation and are enforced by tests:
-
-- **The channel Reynolds number is not independent of grain size.** Manning's n comes from D84
-  by the Strickler relation, so bankfull velocity scales as D84^(−1/6) and Re with it; Re\*
-  contains D84 directly.
-- **Critical shear stress is linear in D84**, so its relative error is identically D84's. Its
-  row in Fig. 5 is a consistency check, not independent evidence.
-- **Bedload is defined only above the threshold of motion.** Of 19,762 samples, 4,783 are
-  excluded because τ\* ≤ τ\*c = 0.047 for at least one of the four D84 estimates, and 412 more
-  because the reference transport rounds to zero, leaving 14,567 from 1,466 sites.
 
 ## Citation
 
